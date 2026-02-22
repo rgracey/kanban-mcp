@@ -91,6 +91,11 @@ func main() {
 	<-quit
 
 	slog.Info("shutting down")
+
+	// Close the SSE hub first so all streaming connections exit cleanly
+	// before http.Server.Shutdown tries to drain active connections.
+	hub.Close()
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 

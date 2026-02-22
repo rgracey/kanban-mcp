@@ -17,11 +17,20 @@ type SSEEvent struct {
 type Hub struct {
 	mu      sync.RWMutex
 	clients map[chan SSEEvent]struct{}
+	done    chan struct{}
 }
 
 // NewHub creates a new broadcast hub.
 func NewHub() *Hub {
-	return &Hub{clients: make(map[chan SSEEvent]struct{})}
+	return &Hub{
+		clients: make(map[chan SSEEvent]struct{}),
+		done:    make(chan struct{}),
+	}
+}
+
+// Close signals all active SSE handlers to exit, allowing a clean shutdown.
+func (h *Hub) Close() {
+	close(h.done)
 }
 
 func (h *Hub) subscribe() chan SSEEvent {
@@ -75,6 +84,8 @@ func SSEHandler(hub *Hub) http.HandlerFunc {
 
 		for {
 			select {
+			case <-hub.done:
+				return
 			case <-r.Context().Done():
 				return
 			case ev, ok := <-ch:
