@@ -78,6 +78,16 @@ type TicketFilter struct {
 	SortOrder *string // "asc" | "desc" (default)
 }
 
+type Task struct {
+	ID        string    `json:"id"`
+	TicketID  string    `json:"ticket_id"`
+	Title     string    `json:"title"`
+	Done      bool      `json:"done"`
+	Position  int       `json:"position"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
 type TicketEventType string
 
 const (

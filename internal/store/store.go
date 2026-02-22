@@ -39,4 +39,10 @@ type Store interface {
 	// Events
 	ListTicketEvents(ctx context.Context, ticketID string) ([]models.TicketEvent, error)
 	CreateTicketEvent(ctx context.Context, ticketID string, eventType models.TicketEventType, actor string, payload map[string]any) (models.TicketEvent, error)
+
+	// Tasks
+	ListTasks(ctx context.Context, ticketID string) ([]models.Task, error)
+	CreateTask(ctx context.Context, ticketID, title string) (models.Task, error)
+	UpdateTask(ctx context.Context, id string, title *string, done *bool) (models.Task, error)
+	DeleteTask(ctx context.Context, id string) error
 }

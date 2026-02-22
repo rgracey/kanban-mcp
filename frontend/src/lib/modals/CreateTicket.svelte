@@ -16,6 +16,7 @@
   let description = $state('')
   let priority = $state<'low' | 'medium' | 'high' | 'critical'>('medium')
   let epicId = $state('')
+  let assignee = $state('')
   let submitting = $state(false)
   let error = $state('')
 
@@ -37,6 +38,7 @@
         description,
         priority,
         epic_id: epicId || null,
+        assignee,
         status: 'todo',
       })
       oncreated(ticket)
@@ -121,6 +123,15 @@
             {/each}
           </select>
         </div>
+      </div>
+      <div>
+        <label for="ct-assignee" class="block text-sm font-medium text-gray-700 mb-1">Assignee</label>
+        <input
+          id="ct-assignee"
+          class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          placeholder="Leave blank to leave unassigned"
+          bind:value={assignee}
+        />
       </div>
     </div>
 

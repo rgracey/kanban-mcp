@@ -357,6 +357,95 @@ func registerTools(srv *server.MCPServer, s store.Store) {
 		},
 	)
 
+	// --- Tasks ---
+
+	srv.AddTool(
+		mcpgo.NewTool("list_tasks",
+			mcpgo.WithDescription("List checklist tasks for a ticket"),
+			mcpgo.WithString("ticket_id", mcpgo.Required(), mcpgo.Description("Ticket ID")),
+		),
+		func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
+			ticketID, err := req.RequireString("ticket_id")
+			if err != nil {
+				return mcpgo.NewToolResultError(err.Error()), nil
+			}
+			tasks, err := s.ListTasks(ctx, ticketID)
+			if err != nil {
+				return mcpgo.NewToolResultError(err.Error()), nil
+			}
+			return jsonResult(tasks)
+		},
+	)
+
+	srv.AddTool(
+		mcpgo.NewTool("create_task",
+			mcpgo.WithDescription("Add a checklist task to a ticket"),
+			mcpgo.WithString("ticket_id", mcpgo.Required(), mcpgo.Description("Ticket ID")),
+			mcpgo.WithString("title", mcpgo.Required(), mcpgo.Description("Task title")),
+		),
+		func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
+			ticketID, err := req.RequireString("ticket_id")
+			if err != nil {
+				return mcpgo.NewToolResultError(err.Error()), nil
+			}
+			title, err := req.RequireString("title")
+			if err != nil {
+				return mcpgo.NewToolResultError(err.Error()), nil
+			}
+			task, err := s.CreateTask(ctx, ticketID, title)
+			if err != nil {
+				return mcpgo.NewToolResultError(err.Error()), nil
+			}
+			return jsonResult(task)
+		},
+	)
+
+	srv.AddTool(
+		mcpgo.NewTool("update_task",
+			mcpgo.WithDescription("Update a checklist task (title and/or done state)"),
+			mcpgo.WithString("id", mcpgo.Required(), mcpgo.Description("Task ID")),
+			mcpgo.WithString("title", mcpgo.Description("New title")),
+			mcpgo.WithBoolean("done", mcpgo.Description("Mark task done (true) or undone (false)")),
+		),
+		func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
+			id, err := req.RequireString("id")
+			if err != nil {
+				return mcpgo.NewToolResultError(err.Error()), nil
+			}
+			args := req.GetArguments()
+			var title *string
+			if v, ok := args["title"].(string); ok && v != "" {
+				title = &v
+			}
+			var done *bool
+			if v, ok := args["done"].(bool); ok {
+				done = &v
+			}
+			task, err := s.UpdateTask(ctx, id, title, done)
+			if err != nil {
+				return mcpgo.NewToolResultError(err.Error()), nil
+			}
+			return jsonResult(task)
+		},
+	)
+
+	srv.AddTool(
+		mcpgo.NewTool("delete_task",
+			mcpgo.WithDescription("Delete a checklist task"),
+			mcpgo.WithString("id", mcpgo.Required(), mcpgo.Description("Task ID")),
+		),
+		func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
+			id, err := req.RequireString("id")
+			if err != nil {
+				return mcpgo.NewToolResultError(err.Error()), nil
+			}
+			if err := s.DeleteTask(ctx, id); err != nil {
+				return mcpgo.NewToolResultError(err.Error()), nil
+			}
+			return mcpgo.NewToolResultText("deleted"), nil
+		},
+	)
+
 	// --- Events ---
 
 	srv.AddTool(

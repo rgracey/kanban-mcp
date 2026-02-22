@@ -91,6 +91,16 @@ func NewAPIRouter(r chi.Router, s store.Store) {
 			r.Get("/comments", ListComments(s))
 			r.Post("/comments", CreateComment(s))
 			r.Get("/events", ListTicketEvents(s))
+			r.Get("/tasks", ListTasks(s))
+			r.Post("/tasks", CreateTask(s))
+		})
+	})
+
+	// Tasks (standalone routes for direct task access)
+	r.Route("/tasks", func(r chi.Router) {
+		r.Route("/{id}", func(r chi.Router) {
+			r.Put("/", UpdateTask(s))
+			r.Delete("/", DeleteTask(s))
 		})
 	})
 

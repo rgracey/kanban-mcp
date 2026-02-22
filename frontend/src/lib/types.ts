@@ -26,6 +26,7 @@ export interface Ticket {
   description: string
   status: Status
   priority: Priority
+  assignee: string
   created_at: string
   updated_at: string
 }
@@ -34,6 +35,16 @@ export interface Comment {
   id: string
   ticket_id: string
   body: string
+  created_at: string
+  updated_at: string
+}
+
+export interface Task {
+  id: string
+  ticket_id: string
+  title: string
+  done: boolean
+  position: number
   created_at: string
   updated_at: string
 }

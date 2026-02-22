@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Ticket, Epic, Comment } from './types.js'
+  import type { Ticket, Epic, Comment, Task } from './types.js'
   import {
     getTicket,
     updateTicket,
@@ -9,6 +9,10 @@
     createComment,
     updateComment,
     deleteComment,
+    listTasks,
+    createTask,
+    updateTask,
+    deleteTask,
   } from './api.js'
   import { toast } from 'svelte-sonner'
 
@@ -26,6 +30,7 @@
   let ticket = $state<Ticket | null>(null)
   let epics = $state<Epic[]>([])
   let comments = $state<Comment[]>([])
+  let tasks = $state<Task[]>([])
   let loading = $state(true)
   let loadError = $state('')
 
@@ -42,6 +47,10 @@
   let editingCommentBody = $state('')
   let savingComment = $state(false)
 
+  // --- task state ---
+  let newTaskTitle = $state('')
+  let addingTask = $state(false)
+
   // --- delete ticket ---
   let deletingTicket = $state(false)
 
@@ -49,10 +58,11 @@
     loading = true
     loadError = ''
     try {
-      ;[ticket, epics, comments] = await Promise.all([
+      ;[ticket, epics, comments, tasks] = await Promise.all([
         getTicket(ticketId),
         listEpics(boardId),
         listComments(ticketId),
+        listTasks(ticketId),
       ])
     } catch (e) {
       loadError = e instanceof Error ? e.message : 'Failed to load ticket'
@@ -72,7 +82,7 @@
     if (e.key === 'Escape') onclose()
   }
 
-  async function saveField(field: keyof Pick<Ticket, 'title' | 'description' | 'status' | 'priority' | 'epic_id'>, value: string | null) {
+  async function saveField(field: keyof Pick<Ticket, 'title' | 'description' | 'status' | 'priority' | 'epic_id' | 'assignee'>, value: string | null) {
     if (!ticket) return
     saving = { ...saving, [field]: true }
     fieldError = ''
@@ -117,6 +127,48 @@
   function onEpicChange(e: Event) {
     const val = (e.currentTarget as HTMLSelectElement).value
     saveField('epic_id', val || null)
+  }
+
+  function onAssigneeBlur(e: FocusEvent) {
+    const val = (e.currentTarget as HTMLInputElement).value.trim()
+    if (ticket && val !== (ticket.assignee ?? '')) saveField('assignee', val)
+  }
+
+  // --- tasks ---
+  async function submitTask() {
+    if (!newTaskTitle.trim() || !ticket) return
+    addingTask = true
+    try {
+      const task = await createTask(ticket.id, newTaskTitle.trim())
+      tasks = [...tasks, task]
+      newTaskTitle = ''
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to add task')
+    } finally {
+      addingTask = false
+    }
+  }
+
+  async function toggleTask(task: Task) {
+    try {
+      const updated = await updateTask(task.id, { done: !task.done })
+      tasks = tasks.map((t) => (t.id === updated.id ? updated : t))
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to update task')
+    }
+  }
+
+  async function removeTask(id: string) {
+    try {
+      await deleteTask(id)
+      tasks = tasks.filter((t) => t.id !== id)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to delete task')
+    }
+  }
+
+  function onTaskKeydown(e: KeyboardEvent) {
+    if (e.key === 'Enter') submitTask()
   }
 
   // --- comments ---
@@ -300,6 +352,65 @@
               <option value={epic.id}>{epic.title}</option>
             {/each}
           </select>
+        </div>
+      </div>
+
+      <!-- Assignee -->
+      <div>
+        <label for="td-assignee" class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Assignee</label>
+        <input
+          id="td-assignee"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 {saving['assignee'] ? 'opacity-50' : ''}"
+          placeholder="Unassigned"
+          value={ticket.assignee ?? ''}
+          onblur={onAssigneeBlur}
+        />
+      </div>
+
+      <!-- Tasks / Checklist -->
+      <div>
+        <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+          Tasks
+          {#if tasks.length > 0}
+            <span class="ml-1 font-normal normal-case">({tasks.filter(t => t.done).length}/{tasks.length})</span>
+          {/if}
+        </h3>
+
+        {#if tasks.length > 0}
+          <ul class="space-y-1 mb-3">
+            {#each tasks as task (task.id)}
+              <li class="flex items-center gap-2 group">
+                <input
+                  type="checkbox"
+                  class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                  checked={task.done}
+                  onchange={() => toggleTask(task)}
+                />
+                <span class="flex-1 text-sm {task.done ? 'line-through text-gray-400' : 'text-gray-800'}">{task.title}</span>
+                <button
+                  class="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity text-xs"
+                  onclick={() => removeTask(task.id)}
+                  aria-label="Delete task"
+                >&times;</button>
+              </li>
+            {/each}
+          </ul>
+        {/if}
+
+        <!-- Add task -->
+        <div class="flex gap-2">
+          <input
+            class="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            placeholder="Add a task…"
+            bind:value={newTaskTitle}
+            onkeydown={onTaskKeydown}
+            disabled={addingTask}
+          />
+          <button
+            class="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+            onclick={submitTask}
+            disabled={addingTask || !newTaskTitle.trim()}
+          >{addingTask ? '...' : 'Add'}</button>
         </div>
       </div>
 

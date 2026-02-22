@@ -1,4 +1,4 @@
-import type { Board, Epic, Ticket, Comment, BoardSummary, TicketFilter, Status, Priority } from './types.js'
+import type { Board, Epic, Ticket, Comment, Task, BoardSummary, TicketFilter, Status, Priority } from './types.js'
 
 const BASE = '/api/v1'
 
@@ -47,9 +47,17 @@ export const listTickets = (boardId: string, filter?: TicketFilter) => {
 export const createTicket = (boardId: string, data: Partial<Ticket> & { title: string }) =>
   request<Ticket>(`/boards/${boardId}/tickets`, { method: 'POST', body: JSON.stringify(data) })
 export const getTicket = (id: string) => request<Ticket>(`/tickets/${id}`)
-export const updateTicket = (id: string, fields: Partial<Pick<Ticket, 'title' | 'description' | 'status' | 'priority' | 'epic_id'>>) =>
+export const updateTicket = (id: string, fields: Partial<Pick<Ticket, 'title' | 'description' | 'status' | 'priority' | 'epic_id' | 'assignee'>>) =>
   request<Ticket>(`/tickets/${id}`, { method: 'PUT', body: JSON.stringify(fields) })
 export const deleteTicket = (id: string) => request<void>(`/tickets/${id}`, { method: 'DELETE' })
+
+// Tasks
+export const listTasks = (ticketId: string) => request<Task[]>(`/tickets/${ticketId}/tasks`)
+export const createTask = (ticketId: string, title: string) =>
+  request<Task>(`/tickets/${ticketId}/tasks`, { method: 'POST', body: JSON.stringify({ title }) })
+export const updateTask = (id: string, fields: { title?: string; done?: boolean }) =>
+  request<Task>(`/tasks/${id}`, { method: 'PUT', body: JSON.stringify(fields) })
+export const deleteTask = (id: string) => request<void>(`/tasks/${id}`, { method: 'DELETE' })
 
 // Comments
 export const listComments = (ticketId: string) => request<Comment[]>(`/tickets/${ticketId}/comments`)
