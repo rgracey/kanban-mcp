@@ -48,9 +48,19 @@ func main() {
 
 	slog.Info("database opened", "path", cfg.DBPath)
 
-	// Create store and API router
+	// Create store, MCP server, and API router
 	store := store.NewSQLiteStore(dbConn)
-	router := api.NewRouter(store)
+	mcpSrv := internalmcp.NewServer(store)
+
+	// When using HTTP transport, mount the MCP handler on /mcp within the main
+	// router so both the SPA/API and MCP share a single port.
+	var mcpHandler http.Handler
+	if cfg.MCPTransport == "http" || cfg.MCPTransport == "both" {
+		mcpHandler = internalmcp.NewHTTPHandler(mcpSrv)
+		slog.Info("MCP HTTP handler mounted", "path", "/mcp", "port", cfg.Port)
+	}
+
+	router := api.NewRouter(store, mcpHandler)
 
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%d", cfg.Port),
@@ -65,14 +75,15 @@ func main() {
 		}
 	}()
 
-	// Start MCP server
-	mcpSrv := internalmcp.NewServer(store)
-	go func() {
-		slog.Info("MCP server starting", "transport", cfg.MCPTransport, "mcp_port", cfg.MCPPort)
-		if err := internalmcp.Start(mcpSrv, cfg.MCPTransport, fmt.Sprintf("%d", cfg.MCPPort)); err != nil {
-			slog.Error("MCP server error", "err", err)
-		}
-	}()
+	// For stdio and both transports, start the stdio MCP listener.
+	if cfg.MCPTransport == "stdio" || cfg.MCPTransport == "both" {
+		go func() {
+			slog.Info("MCP stdio transport starting")
+			if err := internalmcp.StartStdio(mcpSrv); err != nil {
+				slog.Error("MCP stdio error", "err", err)
+			}
+		}()
+	}
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)

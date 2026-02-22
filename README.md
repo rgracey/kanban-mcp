@@ -66,11 +66,11 @@ Add it to your Claude Desktop config (`claude_desktop_config.json`):
 
 No extra arguments are needed — stdio is the default transport.
 
-To run the MCP server over HTTP/SSE instead (or both simultaneously):
+To enable the HTTP transport (Streamable HTTP, MCP spec 2025-03-26), the MCP endpoint is mounted at `/mcp` on the same port as the REST API:
 
 ```sh
-./kanban-mcp --mcp-transport http   # SSE on :8081
-./kanban-mcp --mcp-transport both   # SSE + stdio
+./kanban-mcp --mcp-transport http   # MCP at http://localhost:8080/mcp
+./kanban-mcp --mcp-transport both   # MCP HTTP + stdio simultaneously
 ```
 
 ---
@@ -81,10 +81,9 @@ Configuration is via CLI flags and environment variables. Flags take precedence 
 
 | Flag | Env Var | Default | Description |
 |---|---|---|---|
-| `--port` | `KANBAN_PORT` | `8080` | HTTP port for REST API and SPA |
+| `--port` | `KANBAN_PORT` | `8080` | HTTP port for REST API, SPA, and MCP |
 | `--db` | `KANBAN_DB` | `kanban.db` | Path to the SQLite database file |
 | `--mcp-transport` | `KANBAN_MCP_TRANSPORT` | `stdio` | MCP transport: `stdio`, `http`, or `both` |
-| `--mcp-port` | `KANBAN_MCP_PORT` | `8081` | Port for MCP HTTP/SSE transport (if enabled) |
 | `--log-level` | `KANBAN_LOG_LEVEL` | `info` | Log level: `debug`, `info`, `warn`, `error` |
 
 ---

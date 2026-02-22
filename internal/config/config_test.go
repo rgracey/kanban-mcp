@@ -8,7 +8,7 @@ func clearEnv(t *testing.T) {
 	t.Helper()
 	for _, k := range []string{
 		"KANBAN_PORT", "KANBAN_DB",
-		"KANBAN_MCP_TRANSPORT", "KANBAN_MCP_PORT", "KANBAN_LOG_LEVEL",
+		"KANBAN_MCP_TRANSPORT", "KANBAN_LOG_LEVEL",
 	} {
 		t.Setenv(k, "") // t.Setenv restores on cleanup; setting "" clears the lookup
 	}
@@ -31,9 +31,6 @@ func TestLoad_Defaults(t *testing.T) {
 	if cfg.MCPTransport != "stdio" {
 		t.Errorf("MCPTransport: want stdio, got %s", cfg.MCPTransport)
 	}
-	if cfg.MCPPort != 8081 {
-		t.Errorf("MCPPort: want 8081, got %d", cfg.MCPPort)
-	}
 	if cfg.LogLevel != "info" {
 		t.Errorf("LogLevel: want info, got %s", cfg.LogLevel)
 	}
@@ -43,7 +40,6 @@ func TestLoad_EnvVars(t *testing.T) {
 	t.Setenv("KANBAN_PORT", "9000")
 	t.Setenv("KANBAN_DB", "/path/to/db.sqlite")
 	t.Setenv("KANBAN_MCP_TRANSPORT", "http")
-	t.Setenv("KANBAN_MCP_PORT", "9001")
 	t.Setenv("KANBAN_LOG_LEVEL", "debug")
 
 	cfg, err := load([]string{})
@@ -59,9 +55,6 @@ func TestLoad_EnvVars(t *testing.T) {
 	}
 	if cfg.MCPTransport != "http" {
 		t.Errorf("MCPTransport: want http, got %s", cfg.MCPTransport)
-	}
-	if cfg.MCPPort != 9001 {
-		t.Errorf("MCPPort: want 9001, got %d", cfg.MCPPort)
 	}
 	if cfg.LogLevel != "debug" {
 		t.Errorf("LogLevel: want debug, got %s", cfg.LogLevel)
@@ -133,7 +126,6 @@ func TestLoad_Combined(t *testing.T) {
 	t.Setenv("KANBAN_PORT", "1234")
 	t.Setenv("KANBAN_DB", "test.db")
 	t.Setenv("KANBAN_MCP_TRANSPORT", "both")
-	t.Setenv("KANBAN_MCP_PORT", "5678")
 	t.Setenv("KANBAN_LOG_LEVEL", "warn")
 
 	cfg, err := load([]string{})
@@ -149,9 +141,6 @@ func TestLoad_Combined(t *testing.T) {
 	}
 	if cfg.MCPTransport != "both" {
 		t.Errorf("MCPTransport: want both, got %s", cfg.MCPTransport)
-	}
-	if cfg.MCPPort != 5678 {
-		t.Errorf("MCPPort: want 5678, got %d", cfg.MCPPort)
 	}
 	if cfg.LogLevel != "warn" {
 		t.Errorf("LogLevel: want warn, got %s", cfg.LogLevel)

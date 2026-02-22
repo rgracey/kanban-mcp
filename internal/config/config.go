@@ -13,7 +13,6 @@ type Config struct {
 	Port         int
 	DBPath       string
 	MCPTransport string
-	MCPPort      int
 	LogLevel     string
 }
 
@@ -35,7 +34,6 @@ func load(args []string) (Config, error) {
 	port := fs.Int("port", envInt("KANBAN_PORT", 8080), "HTTP server port")
 	dbPath := fs.String("db", envStr("KANBAN_DB", "kanban.db"), "path to SQLite database file")
 	mcpTransport := fs.String("mcp-transport", envStr("KANBAN_MCP_TRANSPORT", "stdio"), "MCP transport (stdio, http, both)")
-	mcpPort := fs.Int("mcp-port", envInt("KANBAN_MCP_PORT", 8081), "MCP HTTP server port")
 	logLevel := fs.String("log-level", envStr("KANBAN_LOG_LEVEL", "info"), "log level (debug, info, warn, error)")
 
 	if err := fs.Parse(args); err != nil {
@@ -46,7 +44,6 @@ func load(args []string) (Config, error) {
 		Port:         *port,
 		DBPath:       *dbPath,
 		MCPTransport: *mcpTransport,
-		MCPPort:      *mcpPort,
 		LogLevel:     *logLevel,
 	}
 

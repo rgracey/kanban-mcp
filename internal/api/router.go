@@ -10,14 +10,20 @@ import (
 	"github.com/rgracey/kanban-mcp/internal/store"
 )
 
-// NewRouter creates a new HTTP handler with all API routes mounted under /api/v1
-func NewRouter(s store.Store) http.Handler {
+// NewRouter creates a new HTTP handler with all API routes mounted under /api/v1.
+// If mcpHandler is non-nil it is mounted at /mcp (Streamable HTTP MCP transport).
+func NewRouter(s store.Store, mcpHandler http.Handler) http.Handler {
 	r := chi.NewRouter()
 
 	// Standard middleware
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.RequestID)
+
+	// Mount MCP handler at /mcp when HTTP transport is enabled.
+	if mcpHandler != nil {
+		r.Mount("/mcp", mcpHandler)
+	}
 
 	// Mount API routes under /api/v1
 	api := chi.NewRouter()

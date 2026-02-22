@@ -2,7 +2,7 @@ package mcp
 
 import (
 	"context"
-	"fmt"
+	"net/http"
 	"os"
 
 	mcpgo "github.com/mark3labs/mcp-go/mcp"
@@ -19,32 +19,15 @@ func NewServer(s store.Store) *server.MCPServer {
 	return srv
 }
 
-// Start launches the MCP server using the configured transport.
-// For "stdio" it blocks; for "http" it starts a Streamable HTTP server; for "both" it
-// runs Streamable HTTP in a goroutine then blocks on stdio.
-func Start(srv *server.MCPServer, transport, mcpPort string) error {
-	switch transport {
-	case "stdio":
-		return server.NewStdioServer(srv).Listen(context.Background(), os.Stdin, os.Stdout)
+// NewHTTPHandler returns an http.Handler for the MCP Streamable HTTP transport.
+// Mount it at /mcp on your existing HTTP server.
+func NewHTTPHandler(srv *server.MCPServer) http.Handler {
+	return server.NewStreamableHTTPServer(srv)
+}
 
-	case "http":
-		addr := fmt.Sprintf(":%s", mcpPort)
-		httpSrv := server.NewStreamableHTTPServer(srv)
-		return httpSrv.Start(addr)
-
-	case "both":
-		addr := fmt.Sprintf(":%s", mcpPort)
-		httpSrv := server.NewStreamableHTTPServer(srv)
-		go func() {
-			if err := httpSrv.Start(addr); err != nil {
-				fmt.Fprintf(os.Stderr, "MCP HTTP server error: %v\n", err)
-			}
-		}()
-		return server.NewStdioServer(srv).Listen(context.Background(), os.Stdin, os.Stdout)
-
-	default:
-		return fmt.Errorf("unknown transport %q: must be stdio, http, or both", transport)
-	}
+// StartStdio runs the MCP stdio transport, blocking until the stream closes.
+func StartStdio(srv *server.MCPServer) error {
+	return server.NewStdioServer(srv).Listen(context.Background(), os.Stdin, os.Stdout)
 }
 
 // jsonResult marshals v to JSON and returns a text tool result.
