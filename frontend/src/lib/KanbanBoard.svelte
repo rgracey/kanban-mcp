@@ -104,7 +104,7 @@
     <EpicFilter {epics} {selectedEpicId} onchange={(id) => (selectedEpicId = id)} />
     <div class="flex gap-2">
       <button
-        class="px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors"
+        class="px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
         onclick={() => (showCreateEpic = true)}
       >
         + New Epic
