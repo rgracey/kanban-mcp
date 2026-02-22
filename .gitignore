@@ -4,8 +4,8 @@ kanban-mcp.exe
 *.db
 *.db*
 
-# Frontend build output
-frontend/dist/
+# Frontend — dist/ is committed so go:embed always has assets.
+# Rebuild with: cd frontend && npm run build
 frontend/node_modules/
 
 # Editor
