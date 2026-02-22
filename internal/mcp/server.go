@@ -20,8 +20,8 @@ func NewServer(s store.Store) *server.MCPServer {
 }
 
 // Start launches the MCP server using the configured transport.
-// For "stdio" it blocks; for "http" it starts an SSE server; for "both" it
-// runs SSE in a goroutine then blocks on stdio.
+// For "stdio" it blocks; for "http" it starts a Streamable HTTP server; for "both" it
+// runs Streamable HTTP in a goroutine then blocks on stdio.
 func Start(srv *server.MCPServer, transport, mcpPort string) error {
 	switch transport {
 	case "stdio":
@@ -29,15 +29,15 @@ func Start(srv *server.MCPServer, transport, mcpPort string) error {
 
 	case "http":
 		addr := fmt.Sprintf(":%s", mcpPort)
-		sseSrv := server.NewSSEServer(srv, server.WithBaseURL(fmt.Sprintf("http://localhost%s", addr)))
-		return sseSrv.Start(addr)
+		httpSrv := server.NewStreamableHTTPServer(srv)
+		return httpSrv.Start(addr)
 
 	case "both":
 		addr := fmt.Sprintf(":%s", mcpPort)
-		sseSrv := server.NewSSEServer(srv, server.WithBaseURL(fmt.Sprintf("http://localhost%s", addr)))
+		httpSrv := server.NewStreamableHTTPServer(srv)
 		go func() {
-			if err := sseSrv.Start(addr); err != nil {
-				fmt.Fprintf(os.Stderr, "SSE server error: %v\n", err)
+			if err := httpSrv.Start(addr); err != nil {
+				fmt.Fprintf(os.Stderr, "MCP HTTP server error: %v\n", err)
 			}
 		}()
 		return server.NewStdioServer(srv).Listen(context.Background(), os.Stdin, os.Stdout)
