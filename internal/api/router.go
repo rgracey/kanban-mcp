@@ -6,7 +6,7 @@ import (
 
 	chi "github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/rgracey/kanban-mcp/internal/frontend"
+	"github.com/rgracey/kanban-mcp/frontend"
 	"github.com/rgracey/kanban-mcp/internal/store"
 )
 
