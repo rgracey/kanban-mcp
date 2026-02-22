@@ -2,6 +2,7 @@
 kanban-mcp
 kanban-mcp.exe
 *.db
+*.db*
 
 # Frontend build output
 frontend/dist/
