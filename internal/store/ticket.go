@@ -11,7 +11,7 @@ import (
 
 // ListTickets returns tickets for a board, filtered by the provided filter.
 func (s *SQLiteStore) ListTickets(ctx context.Context, boardID string, filter models.TicketFilter) ([]models.Ticket, error) {
-	query := `SELECT id, board_id, epic_id, title, description, status, priority, created_at, updated_at FROM tickets WHERE board_id = ?`
+	query := `SELECT id, board_id, epic_id, title, description, status, priority, assignee, created_at, updated_at FROM tickets WHERE board_id = ?`
 	args := []interface{}{boardID}
 
 	// Add filters
@@ -47,7 +47,7 @@ func (s *SQLiteStore) ListTickets(ctx context.Context, boardID string, filter mo
 		var epicID sql.NullString
 		var createdAt, updatedAt string
 
-		if err := rows.Scan(&t.ID, &t.BoardID, &epicID, &t.Title, &t.Description, &t.Status, &t.Priority, &createdAt, &updatedAt); err != nil {
+		if err := rows.Scan(&t.ID, &t.BoardID, &epicID, &t.Title, &t.Description, &t.Status, &t.Priority, &t.Assignee, &createdAt, &updatedAt); err != nil {
 			return nil, err
 		}
 
@@ -73,14 +73,14 @@ func (s *SQLiteStore) CreateTicket(ctx context.Context, boardID string, t models
 	id := newUUID()
 	createdAt := timeToRFC3339(time.Now())
 
-	query := `INSERT INTO tickets (id, board_id, epic_id, title, description, status, priority, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	query := `INSERT INTO tickets (id, board_id, epic_id, title, description, status, priority, assignee, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 	epicID := sql.NullString{}
 	if t.EpicID != nil {
 		epicID = sql.NullString{String: *t.EpicID, Valid: true}
 	}
 
-	_, err := s.db.ExecContext(ctx, query, id, boardID, epicID, t.Title, t.Description, t.Status, t.Priority, createdAt, createdAt)
+	_, err := s.db.ExecContext(ctx, query, id, boardID, epicID, t.Title, t.Description, t.Status, t.Priority, t.Assignee, createdAt, createdAt)
 	if err != nil {
 		return models.Ticket{}, err
 	}
@@ -93,6 +93,7 @@ func (s *SQLiteStore) CreateTicket(ctx context.Context, boardID string, t models
 		Description: t.Description,
 		Status:      t.Status,
 		Priority:    t.Priority,
+		Assignee:    t.Assignee,
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 	}
@@ -109,12 +110,12 @@ func (s *SQLiteStore) CreateTicket(ctx context.Context, boardID string, t models
 
 // GetTicket returns a ticket by ID.
 func (s *SQLiteStore) GetTicket(ctx context.Context, id string) (models.Ticket, error) {
-	query := `SELECT id, board_id, epic_id, title, description, status, priority, created_at, updated_at FROM tickets WHERE id = ?`
+	query := `SELECT id, board_id, epic_id, title, description, status, priority, assignee, created_at, updated_at FROM tickets WHERE id = ?`
 	var t models.Ticket
 	var epicID sql.NullString
 	var createdAt, updatedAt string
 
-	err := s.db.QueryRowContext(ctx, query, id).Scan(&t.ID, &t.BoardID, &epicID, &t.Title, &t.Description, &t.Status, &t.Priority, &createdAt, &updatedAt)
+	err := s.db.QueryRowContext(ctx, query, id).Scan(&t.ID, &t.BoardID, &epicID, &t.Title, &t.Description, &t.Status, &t.Priority, &t.Assignee, &createdAt, &updatedAt)
 	if err != nil {
 		return models.Ticket{}, err
 	}
@@ -145,6 +146,7 @@ func (s *SQLiteStore) UpdateTicket(ctx context.Context, id string, fields map[st
 		"status":      true,
 		"priority":    true,
 		"epic_id":     true,
+		"assignee":    true,
 	}
 
 	for key := range fields {
@@ -179,6 +181,10 @@ func (s *SQLiteStore) UpdateTicket(ctx context.Context, id string, fields map[st
 		} else {
 			args = append(args, val)
 		}
+	}
+	if val, ok := fields["assignee"]; ok {
+		setClauses = append(setClauses, "assignee = ?")
+		args = append(args, val)
 	}
 
 	updatedAt := timeToRFC3339(time.Now())

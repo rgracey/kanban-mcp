@@ -44,6 +44,7 @@ type Ticket struct {
 	Description string    `json:"description"`
 	Status      Status    `json:"status"`
 	Priority    Priority  `json:"priority"`
+	Assignee    string    `json:"assignee"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }

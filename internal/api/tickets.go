@@ -10,13 +10,14 @@ import (
 	"github.com/rgracey/kanban-mcp/internal/store"
 )
 
-// TicketRequest represents the request body for ticket creation
+// TicketRequest represents the request body for ticket creation/update
 type TicketRequest struct {
 	Title       string  `json:"title"`
 	Description string  `json:"description"`
 	Status      *string `json:"status"`
 	Priority    *string `json:"priority"`
 	EpicID      *string `json:"epic_id"`
+	Assignee    *string `json:"assignee"`
 }
 
 // ListTickets returns tickets for a board
@@ -110,6 +111,11 @@ func CreateTicket(s store.Store) http.HandlerFunc {
 			priority = models.PriorityMedium
 		}
 
+		assignee := ""
+		if req.Assignee != nil {
+			assignee = *req.Assignee
+		}
+
 		ticket := models.Ticket{
 			BoardID:     boardID,
 			EpicID:      req.EpicID,
@@ -117,6 +123,7 @@ func CreateTicket(s store.Store) http.HandlerFunc {
 			Description: req.Description,
 			Status:      status,
 			Priority:    priority,
+			Assignee:    assignee,
 		}
 
 		ticket, err := s.CreateTicket(r.Context(), boardID, ticket)
@@ -205,6 +212,9 @@ func UpdateTicket(s store.Store) http.HandlerFunc {
 		}
 		if req.EpicID != nil {
 			fields["epic_id"] = *req.EpicID
+		}
+		if req.Assignee != nil {
+			fields["assignee"] = *req.Assignee
 		}
 
 		ticket, err := s.UpdateTicket(r.Context(), id, fields)

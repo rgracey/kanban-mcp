@@ -248,6 +248,7 @@ func registerTools(srv *server.MCPServer, s store.Store) {
 			mcpgo.WithString("status", mcpgo.Description("todo | in_progress | done (default: todo)")),
 			mcpgo.WithString("priority", mcpgo.Description("low | medium | high | critical (default: medium)")),
 			mcpgo.WithString("epic_id", mcpgo.Description("Epic ID to attach to")),
+			mcpgo.WithString("assignee", mcpgo.Description("Name of the assignee")),
 		),
 		func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 			boardID, err := req.RequireString("board_id")
@@ -264,6 +265,7 @@ func registerTools(srv *server.MCPServer, s store.Store) {
 				Description: req.GetString("description", ""),
 				Status:      models.Status(req.GetString("status", string(models.StatusTodo))),
 				Priority:    models.Priority(req.GetString("priority", string(models.PriorityMedium))),
+				Assignee:    req.GetString("assignee", ""),
 			}
 			if v, ok := args["epic_id"].(string); ok && v != "" {
 				t.EpicID = &v
@@ -285,6 +287,7 @@ func registerTools(srv *server.MCPServer, s store.Store) {
 			mcpgo.WithString("status", mcpgo.Description("New status")),
 			mcpgo.WithString("priority", mcpgo.Description("New priority")),
 			mcpgo.WithString("epic_id", mcpgo.Description("New epic ID (empty to clear)")),
+			mcpgo.WithString("assignee", mcpgo.Description("New assignee (empty to clear)")),
 		),
 		func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 			id, err := req.RequireString("id")
@@ -293,7 +296,7 @@ func registerTools(srv *server.MCPServer, s store.Store) {
 			}
 			args := req.GetArguments()
 			fields := map[string]any{}
-			for _, key := range []string{"title", "description", "status", "priority", "epic_id"} {
+			for _, key := range []string{"title", "description", "status", "priority", "epic_id", "assignee"} {
 				if v, ok := args[key]; ok {
 					fields[key] = v
 				}
