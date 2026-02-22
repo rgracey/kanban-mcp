@@ -1,1 +1,13 @@
+# Go
+kanban-mcp
+kanban-mcp.exe
+*.db
+
+# Frontend build output
 frontend/dist/
+frontend/node_modules/
+
+# Editor
+.DS_Store
+.idea/
+.vscode/
