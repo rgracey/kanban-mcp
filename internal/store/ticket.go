@@ -1,0 +1,191 @@
+package store
+
+import (
+	"context"
+	"database/sql"
+	"fmt"
+	"time"
+
+	"github.com/rgracey/kanban-mcp/internal/models"
+)
+
+// ListTickets returns tickets for a board, filtered by the provided filter.
+func (s *SQLiteStore) ListTickets(ctx context.Context, boardID string, filter models.TicketFilter) ([]models.Ticket, error) {
+	query := `SELECT id, board_id, epic_id, title, description, status, priority, created_at, updated_at FROM tickets WHERE board_id = ?`
+	args := []interface{}{boardID}
+
+	// Add filters
+	if filter.Status != nil {
+		query += ` AND status = ?`
+		args = append(args, *filter.Status)
+	}
+	if filter.Priority != nil {
+		query += ` AND priority = ?`
+		args = append(args, *filter.Priority)
+	}
+	if filter.EpicID != nil {
+		query += ` AND epic_id = ?`
+		args = append(args, *filter.EpicID)
+	}
+	if filter.Query != nil {
+		query += ` AND (title LIKE ? OR description LIKE ?)`
+		searchPattern := `%` + *filter.Query + `%`
+		args = append(args, searchPattern, searchPattern)
+	}
+
+	query += ` ORDER BY created_at DESC`
+
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var tickets []models.Ticket
+	for rows.Next() {
+		var t models.Ticket
+		var epicID sql.NullString
+		var createdAt, updatedAt string
+
+		if err := rows.Scan(&t.ID, &t.BoardID, &epicID, &t.Title, &t.Description, &t.Status, &t.Priority, &createdAt, &updatedAt); err != nil {
+			return nil, err
+		}
+
+		if epicID.Valid {
+			t.EpicID = &epicID.String
+		}
+
+		if t.CreatedAt, err = rfc3339ToTime(createdAt); err != nil {
+			return nil, err
+		}
+		if t.UpdatedAt, err = rfc3339ToTime(updatedAt); err != nil {
+			return nil, err
+		}
+
+		tickets = append(tickets, t)
+	}
+
+	return tickets, rows.Err()
+}
+
+// CreateTicket creates a new ticket.
+func (s *SQLiteStore) CreateTicket(ctx context.Context, boardID string, t models.Ticket) (models.Ticket, error) {
+	id := newUUID()
+	createdAt := timeToRFC3339(time.Now())
+
+	query := `INSERT INTO tickets (id, board_id, epic_id, title, description, status, priority, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+
+	epicID := sql.NullString{}
+	if t.EpicID != nil {
+		epicID = sql.NullString{String: *t.EpicID, Valid: true}
+	}
+
+	_, err := s.db.ExecContext(ctx, query, id, boardID, epicID, t.Title, t.Description, t.Status, t.Priority, createdAt, createdAt)
+	if err != nil {
+		return models.Ticket{}, err
+	}
+
+	return models.Ticket{
+		ID:          id,
+		BoardID:     boardID,
+		EpicID:      t.EpicID,
+		Title:       t.Title,
+		Description: t.Description,
+		Status:      t.Status,
+		Priority:    t.Priority,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}, nil
+}
+
+// GetTicket returns a ticket by ID.
+func (s *SQLiteStore) GetTicket(ctx context.Context, id string) (models.Ticket, error) {
+	query := `SELECT id, board_id, epic_id, title, description, status, priority, created_at, updated_at FROM tickets WHERE id = ?`
+	var t models.Ticket
+	var epicID sql.NullString
+	var createdAt, updatedAt string
+
+	err := s.db.QueryRowContext(ctx, query, id).Scan(&t.ID, &t.BoardID, &epicID, &t.Title, &t.Description, &t.Status, &t.Priority, &createdAt, &updatedAt)
+	if err != nil {
+		return models.Ticket{}, err
+	}
+
+	if epicID.Valid {
+		t.EpicID = &epicID.String
+	}
+
+	if t.CreatedAt, err = rfc3339ToTime(createdAt); err != nil {
+		return models.Ticket{}, err
+	}
+	if t.UpdatedAt, err = rfc3339ToTime(updatedAt); err != nil {
+		return models.Ticket{}, err
+	}
+
+	return t, nil
+}
+
+// UpdateTicket updates a ticket with partial fields.
+func (s *SQLiteStore) UpdateTicket(ctx context.Context, id string, fields map[string]any) (models.Ticket, error) {
+	// Validate known keys
+	validKeys := map[string]bool{
+		"title":       true,
+		"description": true,
+		"status":      true,
+		"priority":    true,
+		"epic_id":     true,
+	}
+
+	for key := range fields {
+		if !validKeys[key] {
+			return models.Ticket{}, fmt.Errorf("invalid field key: %s", key)
+		}
+	}
+
+	var setClauses []string
+	var args []interface{}
+
+	if val, ok := fields["title"]; ok {
+		setClauses = append(setClauses, "title = ?")
+		args = append(args, val)
+	}
+	if val, ok := fields["description"]; ok {
+		setClauses = append(setClauses, "description = ?")
+		args = append(args, val)
+	}
+	if val, ok := fields["status"]; ok {
+		setClauses = append(setClauses, "status = ?")
+		args = append(args, val)
+	}
+	if val, ok := fields["priority"]; ok {
+		setClauses = append(setClauses, "priority = ?")
+		args = append(args, val)
+	}
+	if val, ok := fields["epic_id"]; ok {
+		setClauses = append(setClauses, "epic_id = ?")
+		if val == nil {
+			args = append(args, nil)
+		} else {
+			args = append(args, val)
+		}
+	}
+
+	updatedAt := timeToRFC3339(time.Now())
+	setClauses = append(setClauses, "updated_at = ?")
+	args = append(args, updatedAt)
+	args = append(args, id)
+
+	query := `UPDATE tickets SET ` + joinWithComma(setClauses) + ` WHERE id = ?`
+	_, err := s.db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return models.Ticket{}, err
+	}
+
+	return s.GetTicket(ctx, id)
+}
+
+// DeleteTicket deletes a ticket. Cascade deletes comments via FK.
+func (s *SQLiteStore) DeleteTicket(ctx context.Context, id string) error {
+	query := `DELETE FROM tickets WHERE id = ?`
+	_, err := s.db.ExecContext(ctx, query, id)
+	return err
+}
