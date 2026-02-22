@@ -19,8 +19,7 @@ A lightweight, self-contained kanban board server distributed as a single Go bin
 Build the frontend first, then compile the Go binary (the frontend `dist/` is embedded at compile time):
 
 ```sh
-cd frontend && npm install && npm run build && cd ..
-go build -o kanban-mcp ./...
+cd frontend && npm install && npm run build && cd .. && go build -o kanban-mcp .
 ```
 
 ---
@@ -88,7 +87,7 @@ Run the Go server and the Vite dev server in separate terminals. Vite proxies `/
 
 ```sh
 # Terminal 1 — Go backend (REST API + MCP)
-go run ./...
+go run .
 
 # Terminal 2 — Vite dev server (hot-reload frontend)
 cd frontend && npm run dev
