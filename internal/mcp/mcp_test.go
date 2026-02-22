@@ -54,7 +54,7 @@ func TestAllToolsRegistered(t *testing.T) {
 	expected := []string{
 		"list_boards", "create_board", "update_board", "delete_board", "get_board_summary",
 		"list_epics", "create_epic", "update_epic", "delete_epic",
-		"list_tickets", "create_ticket", "update_ticket", "delete_ticket", "move_ticket",
+		"list_tickets", "get_ticket", "create_ticket", "update_ticket", "delete_ticket", "move_ticket",
 		"list_tasks", "create_task", "update_task", "delete_task",
 		"list_ticket_events", "add_ticket_event",
 		"list_comments", "add_comment", "update_comment", "delete_comment",

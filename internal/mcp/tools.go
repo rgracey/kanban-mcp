@@ -202,6 +202,50 @@ func registerTools(srv *server.MCPServer, s store.Store) {
 	// --- Tickets ---
 
 	srv.AddTool(
+		mcpgo.NewTool("get_ticket",
+			mcpgo.WithDescription("Get a single ticket by ID, optionally including comments and audit history"),
+			mcpgo.WithString("id", mcpgo.Required(), mcpgo.Description("Ticket ID")),
+			mcpgo.WithBoolean("include_comments", mcpgo.Description("Include comments array in the response")),
+			mcpgo.WithBoolean("include_history", mcpgo.Description("Include audit event history array in the response")),
+		),
+		func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
+			id, err := req.RequireString("id")
+			if err != nil {
+				return mcpgo.NewToolResultError(err.Error()), nil
+			}
+			ticket, err := s.GetTicket(ctx, id)
+			if err != nil {
+				return mcpgo.NewToolResultError(err.Error()), nil
+			}
+
+			// Build an envelope so we can conditionally add comments / history.
+			type envelope struct {
+				models.Ticket
+				Comments []models.Comment     `json:"comments,omitempty"`
+				History  []models.TicketEvent `json:"history,omitempty"`
+			}
+			out := envelope{Ticket: ticket}
+
+			args := req.GetArguments()
+			if v, ok := args["include_comments"].(bool); ok && v {
+				comments, err := s.ListComments(ctx, id)
+				if err != nil {
+					return mcpgo.NewToolResultError(err.Error()), nil
+				}
+				out.Comments = comments
+			}
+			if v, ok := args["include_history"].(bool); ok && v {
+				events, err := s.ListTicketEvents(ctx, id)
+				if err != nil {
+					return mcpgo.NewToolResultError(err.Error()), nil
+				}
+				out.History = events
+			}
+			return jsonResult(out)
+		},
+	)
+
+	srv.AddTool(
 		mcpgo.NewTool("list_tickets",
 			mcpgo.WithDescription("List tickets on a board, with optional filters and sorting"),
 			mcpgo.WithString("board_id", mcpgo.Required(), mcpgo.Description("Board ID")),

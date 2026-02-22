@@ -28,7 +28,7 @@
 
   let { ticketId, boardId, onclose, onupdate, ondelete }: Props = $props()
 
-  // --- data ---
+  // --- server data ---
   let ticket = $state<Ticket | null>(null)
   let epics = $state<Epic[]>([])
   let comments = $state<Comment[]>([])
@@ -36,32 +36,30 @@
   let loading = $state(true)
   let loadError = $state('')
 
-  // --- draft state for explicit-save fields ---
+  // --- draft state (all fields go through Save) ---
   let draftTitle = $state('')
   let draftDescription = $state('')
   let draftAssignee = $state('')
+  let draftStatus = $state('')
+  let draftPriority = $state('')
+  let draftEpicId = $state('')
   let editingDescription = $state(false)
 
-  // --- save state ---
-  let saving = $state(false)
-  let savingField = $state<Record<string, boolean>>({})
-  let fieldError = $state('')
+  // --- pending new tasks (saved on Save button) ---
+  let pendingTasks = $state<string[]>([])   // titles not yet persisted
+  let newTaskTitle = $state('')
 
-  // --- comment form ---
+  // --- save / delete state ---
+  let saving = $state(false)
+  let fieldError = $state('')
+  let deletingTicket = $state(false)
+
+  // --- comment state ---
   let newCommentBody = $state('')
   let addingComment = $state(false)
-
-  // --- per-comment edit state ---
   let editingCommentId = $state<string | null>(null)
   let editingCommentBody = $state('')
   let savingComment = $state(false)
-
-  // --- task state ---
-  let newTaskTitle = $state('')
-  let addingTask = $state(false)
-
-  // --- delete ticket ---
-  let deletingTicket = $state(false)
 
   async function load() {
     loading = true
@@ -77,10 +75,14 @@
       epics = e
       comments = c
       tasks = tk
-      // seed drafts without triggering reactivity loop
+      pendingTasks = []
+      // seed drafts — untrack so assignment doesn't loop
       draftTitle = untrack(() => t.title)
       draftDescription = untrack(() => t.description ?? '')
       draftAssignee = untrack(() => t.assignee ?? '')
+      draftStatus = untrack(() => t.status)
+      draftPriority = untrack(() => t.priority)
+      draftEpicId = untrack(() => t.epic_id ?? '')
     } catch (e) {
       loadError = e instanceof Error ? e.message : 'Failed to load ticket'
       toast.error(loadError)
@@ -94,17 +96,20 @@
     load()
   })
 
-  // Escape key to close (but not when editing description)
   function handleKeydown(e: KeyboardEvent) {
     if (e.key === 'Escape' && !editingDescription) onclose()
   }
 
-  // --- derived: has unsaved changes ---
+  // dirty check: any draft differs from server value, or there are pending tasks
   const hasDraftChanges = $derived(
     ticket !== null && (
       draftTitle !== ticket.title ||
       draftDescription !== (ticket.description ?? '') ||
-      draftAssignee !== (ticket.assignee ?? '')
+      draftAssignee !== (ticket.assignee ?? '') ||
+      draftStatus !== ticket.status ||
+      draftPriority !== ticket.priority ||
+      draftEpicId !== (ticket.epic_id ?? '') ||
+      pendingTasks.length > 0
     )
   )
 
@@ -113,17 +118,34 @@
     saving = true
     fieldError = ''
     try {
+      // 1. Persist ticket field updates
       const updated = await updateTicket(ticket.id, {
         title: draftTitle.trim() || ticket.title,
         description: draftDescription,
         assignee: draftAssignee,
+        status: draftStatus as Ticket['status'],
+        priority: draftPriority as Ticket['priority'],
+        epic_id: draftEpicId || null,
       })
       ticket = updated
       draftTitle = updated.title
       draftDescription = updated.description ?? ''
       draftAssignee = updated.assignee ?? ''
+      draftStatus = updated.status
+      draftPriority = updated.priority
+      draftEpicId = updated.epic_id ?? ''
       editingDescription = false
       onupdate?.(updated)
+
+      // 2. Create pending tasks in order
+      if (pendingTasks.length > 0) {
+        const created = await Promise.all(
+          pendingTasks.map((title) => createTask(ticket!.id, title))
+        )
+        tasks = [...tasks, ...created]
+        pendingTasks = []
+      }
+
       toast.success('Saved')
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Save failed'
@@ -134,52 +156,7 @@
     }
   }
 
-  // Status / priority / epic auto-save (immediate on change — these are selects)
-  async function saveSelectField(field: 'status' | 'priority' | 'epic_id', value: string | null) {
-    if (!ticket) return
-    savingField = { ...savingField, [field]: true }
-    fieldError = ''
-    try {
-      const updated = await updateTicket(ticket.id, { [field]: value })
-      ticket = updated
-      onupdate?.(updated)
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Save failed'
-      fieldError = msg
-      toast.error(msg)
-    } finally {
-      savingField = { ...savingField, [field]: false }
-    }
-  }
-
-  function onStatusChange(e: Event) {
-    saveSelectField('status', (e.currentTarget as HTMLSelectElement).value)
-  }
-
-  function onPriorityChange(e: Event) {
-    saveSelectField('priority', (e.currentTarget as HTMLSelectElement).value)
-  }
-
-  function onEpicChange(e: Event) {
-    const val = (e.currentTarget as HTMLSelectElement).value
-    saveSelectField('epic_id', val || null)
-  }
-
-  // --- tasks ---
-  async function submitTask() {
-    if (!newTaskTitle.trim() || !ticket) return
-    addingTask = true
-    try {
-      const task = await createTask(ticket.id, newTaskTitle.trim())
-      tasks = [...tasks, task]
-      newTaskTitle = ''
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed to add task')
-    } finally {
-      addingTask = false
-    }
-  }
-
+  // --- existing tasks (toggle/delete are immediate — these are atomic actions) ---
   async function toggleTask(task: Task) {
     try {
       const updated = await updateTask(task.id, { done: !task.done })
@@ -198,8 +175,20 @@
     }
   }
 
-  function onTaskKeydown(e: KeyboardEvent) {
-    if (e.key === 'Enter') submitTask()
+  // --- pending task list ---
+  function addPendingTask() {
+    const title = newTaskTitle.trim()
+    if (!title) return
+    pendingTasks = [...pendingTasks, title]
+    newTaskTitle = ''
+  }
+
+  function removePendingTask(i: number) {
+    pendingTasks = pendingTasks.filter((_, idx) => idx !== i)
+  }
+
+  function onNewTaskKeydown(e: KeyboardEvent) {
+    if (e.key === 'Enter') addPendingTask()
   }
 
   // --- comments ---
@@ -370,9 +359,7 @@
           <select
             id="td-status"
             class="w-full border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            value={ticket.status}
-            onchange={onStatusChange}
-            disabled={!!savingField['status']}
+            bind:value={draftStatus}
           >
             <option value="todo">To Do</option>
             <option value="in_progress">In Progress</option>
@@ -385,9 +372,7 @@
           <select
             id="td-priority"
             class="w-full border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            value={ticket.priority}
-            onchange={onPriorityChange}
-            disabled={!!savingField['priority']}
+            bind:value={draftPriority}
           >
             <option value="low">Low</option>
             <option value="medium">Medium</option>
@@ -401,9 +386,7 @@
           <select
             id="td-epic"
             class="w-full border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            value={ticket.epic_id ?? ''}
-            onchange={onEpicChange}
-            disabled={!!savingField['epic_id']}
+            bind:value={draftEpicId}
           >
             <option value="">None</option>
             {#each epics as epic (epic.id)}
@@ -418,7 +401,7 @@
         <label for="td-assignee" class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Assignee</label>
         <input
           id="td-assignee"
-          class="w-full border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          class="w-full border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           placeholder="Unassigned"
           bind:value={draftAssignee}
         />
@@ -428,13 +411,16 @@
       <div>
         <h3 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">
           Tasks
-          {#if tasks.length > 0}
-            <span class="ml-1 font-normal normal-case">({tasks.filter(t => t.done).length}/{tasks.length})</span>
+          {#if tasks.length + pendingTasks.length > 0}
+            <span class="ml-1 font-normal normal-case">
+              ({tasks.filter(t => t.done).length}/{tasks.length + pendingTasks.length})
+            </span>
           {/if}
         </h3>
 
+        <!-- Persisted tasks -->
         {#if tasks.length > 0}
-          <ul class="space-y-1 mb-3">
+          <ul class="space-y-1 mb-2">
             {#each tasks as task (task.id)}
               <li class="flex items-center gap-2 group">
                 <input
@@ -454,20 +440,37 @@
           </ul>
         {/if}
 
-        <!-- Add task -->
+        <!-- Pending (unsaved) tasks -->
+        {#if pendingTasks.length > 0}
+          <ul class="space-y-1 mb-2">
+            {#each pendingTasks as title, i}
+              <li class="flex items-center gap-2 group">
+                <input type="checkbox" class="h-4 w-4 rounded border-gray-300 dark:border-gray-600 opacity-40 cursor-not-allowed" disabled />
+                <span class="flex-1 text-sm text-gray-500 dark:text-gray-400 italic">{title}</span>
+                <span class="text-xs text-gray-400 dark:text-gray-500 mr-1">unsaved</span>
+                <button
+                  class="text-gray-300 dark:text-gray-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity text-xs"
+                  onclick={() => removePendingTask(i)}
+                  aria-label="Remove pending task"
+                >&times;</button>
+              </li>
+            {/each}
+          </ul>
+        {/if}
+
+        <!-- Add task input -->
         <div class="flex gap-2">
           <input
             class="flex-1 border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             placeholder="Add a task…"
             bind:value={newTaskTitle}
-            onkeydown={onTaskKeydown}
-            disabled={addingTask}
+            onkeydown={onNewTaskKeydown}
           />
           <button
-            class="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
-            onclick={submitTask}
-            disabled={addingTask || !newTaskTitle.trim()}
-          >{addingTask ? '...' : 'Add'}</button>
+            class="px-3 py-1.5 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 transition-colors"
+            onclick={addPendingTask}
+            disabled={!newTaskTitle.trim()}
+          >Add</button>
         </div>
       </div>
 
