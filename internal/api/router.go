@@ -1,10 +1,12 @@
 package api
 
 import (
+	"io"
 	"net/http"
 
 	chi "github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/rgracey/kanban-mcp/internal/frontend"
 	"github.com/rgracey/kanban-mcp/internal/store"
 )
 
@@ -22,10 +24,32 @@ func NewRouter(s store.Store) http.Handler {
 	NewAPIRouter(api, s)
 	r.Mount("/api/v1", api)
 
-	// TODO: embed SPA - serve single page app for all non-API routes
-	// r.NotFound(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-	//     http.ServeFile(w, r, "./static/index.html")
-	// }))
+	// Serve embedded SPA for all non-API routes
+	r.Get("/*", func(w http.ResponseWriter, r *http.Request) {
+		var file string
+		if r.URL.Path == "/" || r.URL.Path == "" {
+			file = "dist/index.html"
+		} else {
+			// Try to serve the requested file
+			_, err := frontend.FS.ReadFile("dist" + r.URL.Path)
+			if err != nil {
+				// File not found, serve index.html for SPA client-side routing
+				file = "dist/index.html"
+			} else {
+				file = "dist" + r.URL.Path
+			}
+		}
+
+		f, err := frontend.FS.Open(file)
+		if err != nil {
+			http.Error(w, "Not found", http.StatusNotFound)
+			return
+		}
+		defer f.Close()
+
+		// Copy file content to response
+		io.Copy(w, f)
+	})
 
 	return r
 }
