@@ -125,15 +125,19 @@
     saving = true
     fieldError = ''
     try {
-      // 1. Persist ticket field updates
-      const updated = await updateTicket(ticket.id, {
-        title: draftTitle.trim() || ticket.title,
-        description: draftDescription,
-        assignee: draftAssignee,
-        status: draftStatus as Ticket['status'],
-        priority: draftPriority as Ticket['priority'],
-        epic_id: draftEpicId || null,
-      })
+      // 1. Build a patch containing only fields that actually changed
+      const patch: Parameters<typeof updateTicket>[1] = {}
+      const trimmedTitle = draftTitle.trim()
+      if (trimmedTitle && trimmedTitle !== ticket.title)                patch.title       = trimmedTitle
+      if (draftDescription !== (ticket.description ?? ''))             patch.description = draftDescription
+      if (draftAssignee    !== (ticket.assignee    ?? ''))             patch.assignee    = draftAssignee
+      if (draftStatus      !== ticket.status)                          patch.status      = draftStatus as Ticket['status']
+      if (draftPriority    !== ticket.priority)                        patch.priority    = draftPriority as Ticket['priority']
+      if ((draftEpicId || null) !== ticket.epic_id)                   patch.epic_id     = draftEpicId || null
+
+      const updated = Object.keys(patch).length > 0
+        ? await updateTicket(ticket.id, patch)
+        : ticket
       ticket = updated
       draftTitle = updated.title
       draftDescription = updated.description ?? ''
