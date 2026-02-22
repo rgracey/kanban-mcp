@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"strings"
 
 	chi "github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -33,9 +34,12 @@ func NewRouter(s store.Store) http.Handler {
 	fileServer := http.FileServer(http.FS(distFS))
 
 	r.Get("/*", func(w http.ResponseWriter, req *http.Request) {
-		// Check whether the file exists; if not, fall back to index.html (SPA routing).
-		if req.URL.Path != "/" {
-			if _, err := distFS.Open(req.URL.Path); err != nil {
+		// fs.FS paths must not have a leading slash.
+		// If the file doesn't exist in the embedded FS, serve index.html so the
+		// SPA router can handle the path client-side.
+		path := strings.TrimPrefix(req.URL.Path, "/")
+		if path != "" {
+			if _, err := distFS.Open(path); err != nil {
 				req.URL.Path = "/"
 			}
 		}
