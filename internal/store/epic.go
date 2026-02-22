@@ -16,7 +16,7 @@ func (s *SQLiteStore) ListEpics(ctx context.Context, boardID string) ([]models.E
 	}
 	defer rows.Close()
 
-	var epics []models.Epic
+	epics := make([]models.Epic, 0)
 	for rows.Next() {
 		var e models.Epic
 		var createdAt, updatedAt string

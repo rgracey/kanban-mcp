@@ -16,7 +16,7 @@ func (s *SQLiteStore) ListComments(ctx context.Context, ticketID string) ([]mode
 	}
 	defer rows.Close()
 
-	var comments []models.Comment
+	comments := make([]models.Comment, 0)
 	for rows.Next() {
 		var c models.Comment
 		var createdAt, updatedAt string

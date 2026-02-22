@@ -16,7 +16,7 @@ func (s *SQLiteStore) ListBoards(ctx context.Context) ([]models.Board, error) {
 	}
 	defer rows.Close()
 
-	var boards []models.Board
+	boards := make([]models.Board, 0)
 	for rows.Next() {
 		var b models.Board
 		var createdAt, updatedAt string

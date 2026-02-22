@@ -41,7 +41,7 @@ func (s *SQLiteStore) ListTickets(ctx context.Context, boardID string, filter mo
 	}
 	defer rows.Close()
 
-	var tickets []models.Ticket
+	tickets := make([]models.Ticket, 0)
 	for rows.Next() {
 		var t models.Ticket
 		var epicID sql.NullString
