@@ -70,10 +70,12 @@ type EpicSummary struct {
 }
 
 type TicketFilter struct {
-	Status   *Status
-	Priority *Priority
-	EpicID   *string
-	Query    *string // keyword search against title + description
+	Status    *Status
+	Priority  *Priority
+	EpicID    *string
+	Query     *string // keyword search against title + description
+	SortBy    *string // "priority" | "created_at" (default)
+	SortOrder *string // "asc" | "desc" (default)
 }
 
 type TicketEventType string

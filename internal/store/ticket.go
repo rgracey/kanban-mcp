@@ -33,7 +33,17 @@ func (s *SQLiteStore) ListTickets(ctx context.Context, boardID string, filter mo
 		args = append(args, searchPattern, searchPattern)
 	}
 
-	query += ` ORDER BY created_at DESC`
+	// Sorting
+	sortOrder := "DESC"
+	if filter.SortOrder != nil && (*filter.SortOrder == "asc" || *filter.SortOrder == "ASC") {
+		sortOrder = "ASC"
+	}
+	if filter.SortBy != nil && *filter.SortBy == "priority" {
+		// Map priority strings to numeric weight for ordering
+		query += ` ORDER BY CASE priority WHEN 'critical' THEN 4 WHEN 'high' THEN 3 WHEN 'medium' THEN 2 WHEN 'low' THEN 1 ELSE 0 END ` + sortOrder
+	} else {
+		query += ` ORDER BY created_at ` + sortOrder
+	}
 
 	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {

@@ -203,12 +203,14 @@ func registerTools(srv *server.MCPServer, s store.Store) {
 
 	srv.AddTool(
 		mcpgo.NewTool("list_tickets",
-			mcpgo.WithDescription("List tickets on a board, with optional filters"),
+			mcpgo.WithDescription("List tickets on a board, with optional filters and sorting"),
 			mcpgo.WithString("board_id", mcpgo.Required(), mcpgo.Description("Board ID")),
 			mcpgo.WithString("status", mcpgo.Description("Filter by status: todo, in_progress, done")),
 			mcpgo.WithString("priority", mcpgo.Description("Filter by priority: low, medium, high, critical")),
 			mcpgo.WithString("epic_id", mcpgo.Description("Filter by epic ID")),
 			mcpgo.WithString("q", mcpgo.Description("Keyword search")),
+			mcpgo.WithString("sort_by", mcpgo.Description("Sort field: priority | created_at (default: created_at)")),
+			mcpgo.WithString("sort_order", mcpgo.Description("Sort direction: asc | desc (default: desc)")),
 		),
 		func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 			boardID, err := req.RequireString("board_id")
@@ -230,6 +232,12 @@ func registerTools(srv *server.MCPServer, s store.Store) {
 			}
 			if v, ok := args["q"].(string); ok && v != "" {
 				filter.Query = &v
+			}
+			if v, ok := args["sort_by"].(string); ok && v != "" {
+				filter.SortBy = &v
+			}
+			if v, ok := args["sort_order"].(string); ok && v != "" {
+				filter.SortOrder = &v
 			}
 			tickets, err := s.ListTickets(ctx, boardID, filter)
 			if err != nil {

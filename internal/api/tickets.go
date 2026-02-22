@@ -50,6 +50,12 @@ func ListTickets(s store.Store) http.HandlerFunc {
 		if q := query.Get("q"); q != "" {
 			filter.Query = &q
 		}
+		if sortBy := query.Get("sort_by"); sortBy != "" {
+			filter.SortBy = &sortBy
+		}
+		if sortOrder := query.Get("sort_order"); sortOrder != "" {
+			filter.SortOrder = &sortOrder
+		}
 
 		tickets, err := s.ListTickets(r.Context(), boardID, filter)
 		if err != nil {
