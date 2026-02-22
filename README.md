@@ -16,10 +16,18 @@ A lightweight, self-contained kanban board server distributed as a single Go bin
 
 ## Build
 
-Build the frontend first, then compile the Go binary (the frontend `dist/` is embedded at compile time):
+The built frontend (`frontend/dist/`) is committed to the repo so `go build` works without any Node tooling. Just:
 
 ```sh
-cd frontend && npm install && npm run build && cd .. && go build -o kanban-mcp .
+go build -o kanban-mcp .
+```
+
+If you've changed frontend source files, rebuild the frontend first then commit the updated `dist/`:
+
+```sh
+cd frontend && npm install && npm run build && cd ..
+git add frontend/dist/
+# then go build -o kanban-mcp .
 ```
 
 ---
