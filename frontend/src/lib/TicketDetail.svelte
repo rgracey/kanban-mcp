@@ -15,6 +15,7 @@
     deleteTask,
   } from './api.js'
   import { toast } from 'svelte-sonner'
+  import { marked } from 'marked'
 
   interface Props {
     ticketId: string
@@ -46,6 +47,9 @@
   let editingCommentId = $state<string | null>(null)
   let editingCommentBody = $state('')
   let savingComment = $state(false)
+
+  // --- description edit toggle ---
+  let editingDescription = $state(false)
 
   // --- task state ---
   let newTaskTitle = $state('')
@@ -109,9 +113,21 @@
     if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur()
   }
 
+  async function saveDescription(val: string) {
+    if (!ticket) return
+    if (val !== (ticket.description ?? '')) await saveField('description', val)
+    editingDescription = false
+  }
+
   function onDescBlur(e: FocusEvent) {
     const val = (e.currentTarget as HTMLTextAreaElement).value
-    if (ticket && val !== (ticket.description ?? '')) saveField('description', val)
+    saveDescription(val)
+  }
+
+  function onDescKeydown(e: KeyboardEvent) {
+    if (e.key === 'Escape') {
+      editingDescription = false
+    }
   }
 
   function onStatusChange(e: Event) {
@@ -295,14 +311,40 @@
 
       <!-- Description -->
       <div>
-        <label for="td-desc" class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Description</label>
-        <textarea
-          id="td-desc"
-          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none {saving['description'] ? 'opacity-50' : ''}"
-          rows="4"
-          value={ticket.description ?? ''}
-          onblur={onDescBlur}
-        ></textarea>
+        <div class="flex items-center justify-between mb-1">
+          <label for="td-desc" class="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Description</label>
+          {#if !editingDescription}
+            <button
+              class="text-xs text-indigo-500 hover:text-indigo-700"
+              onclick={() => (editingDescription = true)}
+            >Edit</button>
+          {/if}
+        </div>
+        {#if editingDescription}
+          <textarea
+            id="td-desc"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none {saving['description'] ? 'opacity-50' : ''}"
+            rows="6"
+            value={ticket.description ?? ''}
+            onblur={onDescBlur}
+            onkeydown={onDescKeydown}
+          ></textarea>
+          <p class="text-xs text-gray-400 mt-1">Markdown supported · Esc to cancel</p>
+        {:else}
+          <!-- svelte-ignore a11y_click_events_have_key_events -->
+          <div
+            role="button"
+            tabindex="0"
+            class="md-body min-h-[3rem] rounded-lg border border-transparent hover:border-gray-200 px-3 py-2 cursor-text text-gray-800 {!ticket.description ? 'text-gray-400 italic' : ''}"
+            onclick={() => (editingDescription = true)}
+          >
+            {#if ticket.description}
+              {@html marked.parse(ticket.description)}
+            {:else}
+              <span>No description — click to add</span>
+            {/if}
+          </div>
+        {/if}
       </div>
 
       <!-- Status / Priority / Epic -->

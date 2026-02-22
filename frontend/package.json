@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.2.0",
+    "marked": "^17.0.3",
     "svelte-dnd-action": "^0.9.69",
     "svelte-sonner": "^1.0.7",
     "tailwindcss": "^4.2.0"
