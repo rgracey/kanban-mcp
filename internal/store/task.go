@@ -54,6 +54,10 @@ func (s *SQLiteStore) CreateTask(ctx context.Context, ticketID, title string) (m
 		return models.Task{}, err
 	}
 
+	_, _ = s.CreateTicketEvent(ctx, ticketID, models.EventTaskAdded, "", map[string]any{
+		"task_title": title,
+	})
+
 	t, _ := rfc3339ToTime(now)
 	return models.Task{
 		ID:        id,
@@ -100,10 +104,33 @@ func (s *SQLiteStore) UpdateTask(ctx context.Context, id string, title *string, 
 	if t.UpdatedAt, err = rfc3339ToTime(updatedAt); err != nil {
 		return models.Task{}, err
 	}
+
+	payload := map[string]any{"task_title": t.Title}
+	if done != nil {
+		payload["done"] = *done
+	}
+	if title != nil {
+		payload["title"] = *title
+	}
+	_, _ = s.CreateTicketEvent(ctx, t.TicketID, models.EventTaskUpdated, "", payload)
+
 	return t, nil
 }
 
 func (s *SQLiteStore) DeleteTask(ctx context.Context, id string) error {
+	// Fetch task details before deletion so we can record the event
+	var ticketID, title string
+	_ = s.db.QueryRowContext(ctx, `SELECT ticket_id, title FROM tasks WHERE id = ?`, id).Scan(&ticketID, &title)
+
 	_, err := s.db.ExecContext(ctx, `DELETE FROM tasks WHERE id = ?`, id)
-	return err
+	if err != nil {
+		return err
+	}
+
+	if ticketID != "" {
+		_, _ = s.CreateTicketEvent(ctx, ticketID, models.EventTaskDeleted, "", map[string]any{
+			"task_title": title,
+		})
+	}
+	return nil
 }

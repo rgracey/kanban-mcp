@@ -274,28 +274,44 @@
   }
 
   const eventLabels: Record<string, string> = {
-    created: 'Created',
-    moved: 'Moved',
-    edited: 'Edited',
-    commented: 'Commented',
+    created:      'Created',
+    moved:        'Moved',
+    edited:       'Edited',
+    commented:    'Commented',
+    task_added:   'Task added',
+    task_updated: 'Task updated',
+    task_deleted: 'Task deleted',
   }
 
   const eventIcons: Record<string, string> = {
-    created: '✦',
-    moved: '→',
-    edited: '✎',
-    commented: '💬',
+    created:      '✦',
+    moved:        '→',
+    edited:       '✎',
+    commented:    '💬',
+    task_added:   '☐',
+    task_updated: '☑',
+    task_deleted: '✕',
   }
 
   function eventSummary(ev: TicketEvent): string {
     if (ev.type === 'moved') {
       const from = ev.payload?.from as string | undefined
       const to = ev.payload?.to as string | undefined
-      if (from && to) return `${from.replace('_', ' ')} → ${to.replace('_', ' ')}`
+      if (from && to) return `${from.replace(/_/g, ' ')} → ${to.replace(/_/g, ' ')}`
     }
     if (ev.type === 'edited') {
-      const fields = Object.keys(ev.payload ?? {}).filter(k => k !== 'from' && k !== 'to')
+      const fields = Object.keys(ev.payload ?? {})
       if (fields.length) return `Updated: ${fields.join(', ')}`
+    }
+    if (ev.type === 'task_added' || ev.type === 'task_deleted') {
+      const taskTitle = ev.payload?.task_title as string | undefined
+      if (taskTitle) return `"${taskTitle}"`
+    }
+    if (ev.type === 'task_updated') {
+      const taskTitle = ev.payload?.task_title as string | undefined
+      const done = ev.payload?.done as boolean | undefined
+      if (done !== undefined) return `"${taskTitle}" marked ${done ? 'done' : 'undone'}`
+      if (taskTitle) return `"${taskTitle}"`
     }
     return ''
   }

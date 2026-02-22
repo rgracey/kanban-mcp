@@ -49,7 +49,7 @@ export interface Task {
   updated_at: string
 }
 
-export type TicketEventType = 'created' | 'moved' | 'edited' | 'commented'
+export type TicketEventType = 'created' | 'moved' | 'edited' | 'commented' | 'task_added' | 'task_updated' | 'task_deleted'
 
 export interface TicketEvent {
   id: string

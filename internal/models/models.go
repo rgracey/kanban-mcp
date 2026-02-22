@@ -91,10 +91,13 @@ type Task struct {
 type TicketEventType string
 
 const (
-	EventCreated   TicketEventType = "created"
-	EventMoved     TicketEventType = "moved"
-	EventEdited    TicketEventType = "edited"
-	EventCommented TicketEventType = "commented"
+	EventCreated     TicketEventType = "created"
+	EventMoved       TicketEventType = "moved"
+	EventEdited      TicketEventType = "edited"
+	EventCommented   TicketEventType = "commented"
+	EventTaskAdded   TicketEventType = "task_added"
+	EventTaskUpdated TicketEventType = "task_updated"
+	EventTaskDeleted TicketEventType = "task_deleted"
 )
 
 type TicketEvent struct {
