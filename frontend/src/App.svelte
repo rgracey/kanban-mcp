@@ -1,47 +1,54 @@
 <script lang="ts">
-  import svelteLogo from './assets/svelte.svg'
-  import viteLogo from '/vite.svg'
-  import Counter from './lib/Counter.svelte'
+  import { onMount } from 'svelte'
+  import type { Board } from './lib/types.js'
+  import { listBoards } from './lib/api.js'
+  import BoardSwitcher from './lib/BoardSwitcher.svelte'
+  import KanbanBoard from './lib/KanbanBoard.svelte'
+
+  let boards = $state<Board[]>([])
+  let selectedId = $state<string | null>(null)
+  let loading = $state(true)
+  let error = $state('')
+
+  onMount(async () => {
+    try {
+      boards = await listBoards()
+      if (boards.length > 0) selectedId = boards[0].id
+    } catch (e) {
+      error = e instanceof Error ? e.message : 'Failed to load boards'
+    } finally {
+      loading = false
+    }
+  })
+
+  function handleBoardCreate(board: Board) {
+    boards = [...boards, board]
+    selectedId = board.id
+  }
 </script>
 
-<main>
-  <div>
-    <a href="https://vite.dev" target="_blank" rel="noreferrer">
-      <img src={viteLogo} class="logo" alt="Vite Logo" />
-    </a>
-    <a href="https://svelte.dev" target="_blank" rel="noreferrer">
-      <img src={svelteLogo} class="logo svelte" alt="Svelte Logo" />
-    </a>
-  </div>
-  <h1>Vite + Svelte</h1>
+<div class="min-h-screen bg-gray-100 flex flex-col">
+  {#if loading}
+    <div class="flex items-center justify-center h-screen text-gray-400 text-sm">Loading...</div>
+  {:else if error}
+    <div class="flex items-center justify-center h-screen text-red-500 text-sm">{error}</div>
+  {:else}
+    <BoardSwitcher
+      {boards}
+      {selectedId}
+      onselect={(id) => (selectedId = id)}
+      onboardcreate={handleBoardCreate}
+    />
 
-  <div class="card">
-    <Counter />
-  </div>
-
-  <p>
-    Check out <a href="https://github.com/sveltejs/kit#readme" target="_blank" rel="noreferrer">SvelteKit</a>, the official Svelte app framework powered by Vite!
-  </p>
-
-  <p class="read-the-docs">
-    Click on the Vite and Svelte logos to learn more
-  </p>
-</main>
-
-<style>
-  .logo {
-    height: 6em;
-    padding: 1.5em;
-    will-change: filter;
-    transition: filter 300ms;
-  }
-  .logo:hover {
-    filter: drop-shadow(0 0 2em #646cffaa);
-  }
-  .logo.svelte:hover {
-    filter: drop-shadow(0 0 2em #ff3e00aa);
-  }
-  .read-the-docs {
-    color: #888;
-  }
-</style>
+    <main class="flex-1 p-6">
+      {#if selectedId}
+        <KanbanBoard boardId={selectedId} />
+      {:else}
+        <div class="flex flex-col items-center justify-center h-64 text-gray-400">
+          <p class="text-lg mb-2">No boards yet</p>
+          <p class="text-sm">Click <strong>"+ New board"</strong> above to get started.</p>
+        </div>
+      {/if}
+    </main>
+  {/if}
+</div>
