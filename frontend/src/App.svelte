@@ -28,6 +28,17 @@
     selectedId = board.id
     toast.success(`Board "${board.name}" created`)
   }
+
+  function handleBoardUpdate(board: Board) {
+    boards = boards.map((b) => (b.id === board.id ? board : b))
+  }
+
+  function handleBoardDelete(boardId: string) {
+    boards = boards.filter((b) => b.id !== boardId)
+    if (selectedId === boardId) {
+      selectedId = boards.length > 0 ? boards[0].id : null
+    }
+  }
 </script>
 
 <Toaster richColors position="bottom-right" />
@@ -42,6 +53,8 @@
       {selectedId}
       onselect={(id) => (selectedId = id)}
       onboardcreate={handleBoardCreate}
+      onboardupdate={handleBoardUpdate}
+      onboarddelete={handleBoardDelete}
     />
 
     <main class="flex-1 p-6">
