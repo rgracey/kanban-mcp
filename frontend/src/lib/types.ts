@@ -49,6 +49,17 @@ export interface Task {
   updated_at: string
 }
 
+export type TicketEventType = 'created' | 'moved' | 'edited' | 'commented'
+
+export interface TicketEvent {
+  id: string
+  ticket_id: string
+  type: TicketEventType
+  actor: string
+  payload: Record<string, unknown>
+  created_at: string
+}
+
 export interface BoardSummary {
   board_id: string
   ticket_counts: Record<Status, number>

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Ticket, Epic, Comment, Task } from './types.js'
+  import type { Ticket, Epic, Comment, Task, TicketEvent } from './types.js'
   import {
     getTicket,
     updateTicket,
@@ -13,6 +13,7 @@
     createTask,
     updateTask,
     deleteTask,
+    listTicketEvents,
   } from './api.js'
   import { toast } from 'svelte-sonner'
   import { marked } from 'marked'
@@ -33,8 +34,12 @@
   let epics = $state<Epic[]>([])
   let comments = $state<Comment[]>([])
   let tasks = $state<Task[]>([])
+  let events = $state<TicketEvent[]>([])
   let loading = $state(true)
   let loadError = $state('')
+
+  // --- history panel ---
+  let showHistory = $state(false)
 
   // --- draft state (all fields go through Save) ---
   let draftTitle = $state('')
@@ -65,16 +70,18 @@
     loading = true
     loadError = ''
     try {
-      const [t, e, c, tk] = await Promise.all([
+      const [t, e, c, tk, ev] = await Promise.all([
         getTicket(ticketId),
         listEpics(boardId),
         listComments(ticketId),
         listTasks(ticketId),
+        listTicketEvents(ticketId),
       ])
       ticket = t
       epics = e
       comments = c
       tasks = tk
+      events = ev
       pendingTasks = []
       // seed drafts — untrack so assignment doesn't loop
       draftTitle = untrack(() => t.title)
@@ -260,6 +267,33 @@
       dateStyle: 'medium',
       timeStyle: 'short',
     })
+  }
+
+  const eventLabels: Record<string, string> = {
+    created: 'Created',
+    moved: 'Moved',
+    edited: 'Edited',
+    commented: 'Commented',
+  }
+
+  const eventIcons: Record<string, string> = {
+    created: '✦',
+    moved: '→',
+    edited: '✎',
+    commented: '💬',
+  }
+
+  function eventSummary(ev: TicketEvent): string {
+    if (ev.type === 'moved') {
+      const from = ev.payload?.from as string | undefined
+      const to = ev.payload?.to as string | undefined
+      if (from && to) return `${from.replace('_', ' ')} → ${to.replace('_', ' ')}`
+    }
+    if (ev.type === 'edited') {
+      const fields = Object.keys(ev.payload ?? {}).filter(k => k !== 'from' && k !== 'to')
+      if (fields.length) return `Updated: ${fields.join(', ')}`
+    }
+    return ''
   }
 </script>
 
@@ -472,6 +506,54 @@
             disabled={!newTaskTitle.trim()}
           >Add</button>
         </div>
+      </div>
+
+      <!-- History -->
+      <div>
+        <button
+          class="flex items-center gap-1.5 w-full text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+          onclick={() => (showHistory = !showHistory)}
+          aria-expanded={showHistory}
+        >
+          <svg
+            class="w-3 h-3 transition-transform {showHistory ? 'rotate-90' : ''}"
+            fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"
+          >
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
+          History
+          {#if events.length > 0}
+            <span class="ml-1 font-normal normal-case">({events.length})</span>
+          {/if}
+        </button>
+
+        {#if showHistory}
+          {#if events.length === 0}
+            <p class="text-sm text-gray-400 italic mb-2">No history yet.</p>
+          {:else}
+            <ol class="relative border-l border-gray-200 dark:border-gray-700 ml-2 space-y-3 mb-2">
+              {#each [...events].reverse() as ev (ev.id)}
+                <li class="ml-4">
+                  <span class="absolute -left-2 flex h-4 w-4 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 ring-2 ring-white dark:ring-gray-900 text-xs">
+                    {eventIcons[ev.type] ?? '·'}
+                  </span>
+                  <div class="flex flex-col">
+                    <span class="text-xs font-medium text-gray-700 dark:text-gray-300">
+                      {eventLabels[ev.type] ?? ev.type}
+                      {#if ev.actor}
+                        <span class="font-normal text-gray-500 dark:text-gray-400">by {ev.actor}</span>
+                      {/if}
+                    </span>
+                    {#if eventSummary(ev)}
+                      <span class="text-xs text-gray-500 dark:text-gray-400">{eventSummary(ev)}</span>
+                    {/if}
+                    <time class="text-xs text-gray-400">{formatDate(ev.created_at)}</time>
+                  </div>
+                </li>
+              {/each}
+            </ol>
+          {/if}
+        {/if}
       </div>
 
       <!-- Comments -->
