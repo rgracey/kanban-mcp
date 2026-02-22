@@ -4,12 +4,13 @@
 
   interface Props {
     ticket: Ticket
+    boardId: string
     epics: Epic[]
     onupdate?: (ticket: Ticket) => void
     ondelete?: (ticketId: string) => void
   }
 
-  let { ticket, epics, onupdate, ondelete }: Props = $props()
+  let { ticket, boardId, epics, onupdate, ondelete }: Props = $props()
 
   let showDetail = $state(false)
 
@@ -48,8 +49,8 @@
 
 {#if showDetail}
   <TicketDetail
-    {ticket}
-    {epics}
+    ticketId={ticket.id}
+    {boardId}
     onclose={() => (showDetail = false)}
     onupdate={(updated: Ticket) => {
       onupdate?.(updated)

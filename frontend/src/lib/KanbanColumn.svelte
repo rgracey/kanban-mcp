@@ -8,13 +8,14 @@
     label: string
     tickets: Ticket[]
     epics: Epic[]
+    boardId: string
     onconsider: (status: Status, tickets: Ticket[]) => void
     onfinalize: (status: Status, tickets: Ticket[]) => void
     onticketupdate: (ticket: Ticket) => void
     onticketdelete: (ticketId: string) => void
   }
 
-  let { status, label, tickets, epics, onconsider, onfinalize, onticketupdate, onticketdelete }: Props = $props()
+  let { status, label, tickets, epics, boardId, onconsider, onfinalize, onticketupdate, onticketdelete }: Props = $props()
 
   const columnColors: Record<Status, string> = {
     todo: 'bg-gray-50 border-gray-200',
@@ -47,6 +48,7 @@
       <div>
         <TicketCard
           {ticket}
+          {boardId}
           {epics}
           onupdate={onticketupdate}
           ondelete={onticketdelete}
