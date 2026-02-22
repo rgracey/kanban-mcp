@@ -15,6 +15,7 @@ import (
 	"github.com/rgracey/kanban-mcp/internal/api"
 	"github.com/rgracey/kanban-mcp/internal/config"
 	"github.com/rgracey/kanban-mcp/internal/db"
+	internalmcp "github.com/rgracey/kanban-mcp/internal/mcp"
 	"github.com/rgracey/kanban-mcp/internal/store"
 )
 
@@ -61,6 +62,15 @@ func main() {
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			slog.Error("server error", "err", err)
 			os.Exit(1)
+		}
+	}()
+
+	// Start MCP server
+	mcpSrv := internalmcp.NewServer(store)
+	go func() {
+		slog.Info("MCP server starting", "transport", cfg.MCPTransport, "mcp_port", cfg.MCPPort)
+		if err := internalmcp.Start(mcpSrv, cfg.MCPTransport, fmt.Sprintf("%d", cfg.MCPPort)); err != nil {
+			slog.Error("MCP server error", "err", err)
 		}
 	}()
 
