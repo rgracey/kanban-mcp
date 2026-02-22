@@ -48,20 +48,21 @@ func decodeResult(t *testing.T, result *mcpgo.CallToolResult, v any) {
 	require.NoError(t, json.Unmarshal([]byte(text.Text), v))
 }
 
-// TestAllToolsRegistered verifies all 18 tools are present.
+// TestAllToolsRegistered verifies all tools are present.
 func TestAllToolsRegistered(t *testing.T) {
 	srv := setupServer(t)
 	expected := []string{
 		"list_boards", "create_board", "update_board", "delete_board", "get_board_summary",
 		"list_epics", "create_epic", "update_epic", "delete_epic",
 		"list_tickets", "create_ticket", "update_ticket", "delete_ticket", "move_ticket",
+		"list_ticket_events", "add_ticket_event",
 		"list_comments", "add_comment", "update_comment", "delete_comment",
 	}
 	tools := srv.ListTools()
 	for _, name := range expected {
 		assert.Contains(t, tools, name, "missing tool %q", name)
 	}
-	assert.Len(t, tools, 18, "expected exactly 18 tools")
+	assert.Len(t, tools, len(expected), "unexpected number of tools")
 }
 
 // TestBoardCRUD exercises board tools.

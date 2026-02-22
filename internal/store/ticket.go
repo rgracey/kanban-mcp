@@ -85,7 +85,7 @@ func (s *SQLiteStore) CreateTicket(ctx context.Context, boardID string, t models
 		return models.Ticket{}, err
 	}
 
-	return models.Ticket{
+	created := models.Ticket{
 		ID:          id,
 		BoardID:     boardID,
 		EpicID:      t.EpicID,
@@ -95,7 +95,16 @@ func (s *SQLiteStore) CreateTicket(ctx context.Context, boardID string, t models
 		Priority:    t.Priority,
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
-	}, nil
+	}
+
+	// Emit audit event (best-effort; do not fail the create on event error)
+	_, _ = s.CreateTicketEvent(ctx, id, models.EventCreated, "", map[string]any{
+		"title":    created.Title,
+		"status":   string(created.Status),
+		"priority": string(created.Priority),
+	})
+
+	return created, nil
 }
 
 // GetTicket returns a ticket by ID.
@@ -126,6 +135,9 @@ func (s *SQLiteStore) GetTicket(ctx context.Context, id string) (models.Ticket, 
 
 // UpdateTicket updates a ticket with partial fields.
 func (s *SQLiteStore) UpdateTicket(ctx context.Context, id string, fields map[string]any) (models.Ticket, error) {
+	// Fetch current state for event diffing
+	before, _ := s.GetTicket(ctx, id)
+
 	// Validate known keys
 	validKeys := map[string]bool{
 		"title":       true,
@@ -180,7 +192,30 @@ func (s *SQLiteStore) UpdateTicket(ctx context.Context, id string, fields map[st
 		return models.Ticket{}, err
 	}
 
-	return s.GetTicket(ctx, id)
+	updated, err := s.GetTicket(ctx, id)
+	if err != nil {
+		return models.Ticket{}, err
+	}
+
+	// Emit audit event (best-effort)
+	if newStatus, ok := fields["status"].(string); ok && string(before.Status) != newStatus {
+		_, _ = s.CreateTicketEvent(ctx, id, models.EventMoved, "", map[string]any{
+			"from": string(before.Status),
+			"to":   newStatus,
+		})
+	} else {
+		payload := map[string]any{}
+		for k, v := range fields {
+			if v != nil {
+				payload[k] = v
+			}
+		}
+		if len(payload) > 0 {
+			_, _ = s.CreateTicketEvent(ctx, id, models.EventEdited, "", payload)
+		}
+	}
+
+	return updated, nil
 }
 
 // DeleteTicket deletes a ticket. Cascade deletes comments via FK.

@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"context"
+	"encoding/json"
 
 	mcpgo "github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
@@ -342,6 +343,58 @@ func registerTools(srv *server.MCPServer, s store.Store) {
 				return mcpgo.NewToolResultError(err.Error()), nil
 			}
 			return jsonResult(ticket)
+		},
+	)
+
+	// --- Events ---
+
+	srv.AddTool(
+		mcpgo.NewTool("list_ticket_events",
+			mcpgo.WithDescription("List the audit trail / history for a ticket"),
+			mcpgo.WithString("ticket_id", mcpgo.Required(), mcpgo.Description("Ticket ID")),
+		),
+		func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
+			ticketID, err := req.RequireString("ticket_id")
+			if err != nil {
+				return mcpgo.NewToolResultError(err.Error()), nil
+			}
+			events, err := s.ListTicketEvents(ctx, ticketID)
+			if err != nil {
+				return mcpgo.NewToolResultError(err.Error()), nil
+			}
+			return jsonResult(events)
+		},
+	)
+
+	srv.AddTool(
+		mcpgo.NewTool("add_ticket_event",
+			mcpgo.WithDescription("Manually append an event to a ticket's audit trail"),
+			mcpgo.WithString("ticket_id", mcpgo.Required(), mcpgo.Description("Ticket ID")),
+			mcpgo.WithString("type", mcpgo.Required(), mcpgo.Description("Event type: created, moved, edited, commented")),
+			mcpgo.WithString("actor", mcpgo.Description("Who performed the action")),
+			mcpgo.WithString("payload", mcpgo.Description("JSON object with event details")),
+		),
+		func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
+			ticketID, err := req.RequireString("ticket_id")
+			if err != nil {
+				return mcpgo.NewToolResultError(err.Error()), nil
+			}
+			eventType, err := req.RequireString("type")
+			if err != nil {
+				return mcpgo.NewToolResultError(err.Error()), nil
+			}
+			actor := req.GetString("actor", "")
+			payload := map[string]any{}
+			if raw := req.GetString("payload", ""); raw != "" {
+				if err := json.Unmarshal([]byte(raw), &payload); err != nil {
+					return mcpgo.NewToolResultError("payload must be valid JSON: " + err.Error()), nil
+				}
+			}
+			event, err := s.CreateTicketEvent(ctx, ticketID, models.TicketEventType(eventType), actor, payload)
+			if err != nil {
+				return mcpgo.NewToolResultError(err.Error()), nil
+			}
+			return jsonResult(event)
 		},
 	)
 

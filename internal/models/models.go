@@ -74,3 +74,21 @@ type TicketFilter struct {
 	EpicID   *string
 	Query    *string // keyword search against title + description
 }
+
+type TicketEventType string
+
+const (
+	EventCreated   TicketEventType = "created"
+	EventMoved     TicketEventType = "moved"
+	EventEdited    TicketEventType = "edited"
+	EventCommented TicketEventType = "commented"
+)
+
+type TicketEvent struct {
+	ID        string          `json:"id"`
+	TicketID  string          `json:"ticket_id"`
+	Type      TicketEventType `json:"type"`
+	Actor     string          `json:"actor"`
+	Payload   map[string]any  `json:"payload"`
+	CreatedAt time.Time       `json:"created_at"`
+}

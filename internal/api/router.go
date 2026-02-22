@@ -90,6 +90,7 @@ func NewAPIRouter(r chi.Router, s store.Store) {
 			r.Delete("/", DeleteTicket(s))
 			r.Get("/comments", ListComments(s))
 			r.Post("/comments", CreateComment(s))
+			r.Get("/events", ListTicketEvents(s))
 		})
 	})
 

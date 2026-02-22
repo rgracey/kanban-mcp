@@ -35,4 +35,8 @@ type Store interface {
 	GetComment(ctx context.Context, id string) (models.Comment, error)
 	UpdateComment(ctx context.Context, id, body string) (models.Comment, error)
 	DeleteComment(ctx context.Context, id string) error
+
+	// Events
+	ListTicketEvents(ctx context.Context, ticketID string) ([]models.TicketEvent, error)
+	CreateTicketEvent(ctx context.Context, ticketID string, eventType models.TicketEventType, actor string, payload map[string]any) (models.TicketEvent, error)
 }
