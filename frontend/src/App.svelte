@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte'
+  import { Toaster, toast } from 'svelte-sonner'
   import type { Board } from './lib/types.js'
   import { listBoards } from './lib/api.js'
   import BoardSwitcher from './lib/BoardSwitcher.svelte'
@@ -16,6 +17,7 @@
       if (boards.length > 0) selectedId = boards[0].id
     } catch (e) {
       error = e instanceof Error ? e.message : 'Failed to load boards'
+      toast.error(error)
     } finally {
       loading = false
     }
@@ -24,9 +26,11 @@
   function handleBoardCreate(board: Board) {
     boards = [...boards, board]
     selectedId = board.id
+    toast.success(`Board "${board.name}" created`)
   }
 </script>
 
+<Toaster richColors position="bottom-right" />
 <div class="min-h-screen bg-gray-100 flex flex-col">
   {#if loading}
     <div class="flex items-center justify-center h-screen text-gray-400 text-sm">Loading...</div>

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { toast } from 'svelte-sonner'
   import type { Ticket, Epic, Status } from './types.js'
   import { listTickets, listEpics, updateTicket } from './api.js'
   import EpicFilter from './EpicFilter.svelte'
@@ -33,6 +34,7 @@
       ;[tickets, epics] = await Promise.all([listTickets(boardId), listEpics(boardId)])
     } catch (e) {
       error = e instanceof Error ? e.message : 'Failed to load board'
+      toast.error(error)
     } finally {
       loading = false
     }
@@ -65,7 +67,10 @@
         try {
           const saved = await updateTicket(t.id, { status })
           tickets = tickets.map((existing) => (existing.id === saved.id ? saved : existing))
-        } catch {
+          const label = { todo: 'To Do', in_progress: 'In Progress', done: 'Done' }[status]
+          toast.success(`Moved "${saved.title}" to ${label}`)
+        } catch (e) {
+          toast.error(e instanceof Error ? e.message : 'Failed to move ticket')
           await load()
           return
         }
@@ -84,11 +89,13 @@
   function handleTicketCreate(ticket: Ticket) {
     tickets = [...tickets, ticket]
     showCreateTicket = false
+    toast.success(`Ticket "${ticket.title}" created`)
   }
 
   function handleEpicCreate(epic: Epic) {
     epics = [...epics, epic]
     showCreateEpic = false
+    toast.success(`Epic "${epic.title}" created`)
   }
 </script>
 

@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Epic } from '../types.js'
   import { createEpic } from '../api.js'
+  import { toast } from 'svelte-sonner'
 
   interface Props {
     boardId: string
@@ -28,6 +29,7 @@
       oncreated(epic)
     } catch (e) {
       error = e instanceof Error ? e.message : 'Create failed'
+      toast.error(error)
     } finally {
       submitting = false
     }

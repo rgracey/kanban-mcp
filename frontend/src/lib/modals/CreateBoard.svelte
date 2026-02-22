@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Board } from '../types.js'
   import { createBoard } from '../api.js'
+  import { toast } from 'svelte-sonner'
 
   interface Props {
     onclose: () => void
@@ -27,6 +28,7 @@
       oncreated(board)
     } catch (e) {
       error = e instanceof Error ? e.message : 'Create failed'
+      toast.error(error)
     } finally {
       submitting = false
     }

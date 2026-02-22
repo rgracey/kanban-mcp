@@ -10,6 +10,7 @@
     updateComment,
     deleteComment,
   } from './api.js'
+  import { toast } from 'svelte-sonner'
 
   interface Props {
     ticketId: string
@@ -55,6 +56,7 @@
       ])
     } catch (e) {
       loadError = e instanceof Error ? e.message : 'Failed to load ticket'
+      toast.error(loadError)
     } finally {
       loading = false
     }
@@ -78,8 +80,11 @@
       const updated = await updateTicket(ticket.id, { [field]: value })
       ticket = updated
       onupdate?.(updated)
+      toast.success('Saved')
     } catch (e) {
-      fieldError = e instanceof Error ? e.message : 'Save failed'
+      const msg = e instanceof Error ? e.message : 'Save failed'
+      fieldError = msg
+      toast.error(msg)
     } finally {
       saving = { ...saving, [field]: false }
     }
@@ -122,8 +127,9 @@
       const comment = await createComment(ticket.id, newCommentBody.trim())
       comments = [...comments, comment]
       newCommentBody = ''
-    } catch {
-      // silent – user can retry
+      toast.success('Comment posted')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to post comment')
     } finally {
       addingComment = false
     }
@@ -141,8 +147,9 @@
       const updated = await updateComment(editingCommentId, editingCommentBody)
       comments = comments.map((c) => (c.id === updated.id ? updated : c))
       editingCommentId = null
-    } catch {
-      // silent
+      toast.success('Comment updated')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to update comment')
     } finally {
       savingComment = false
     }
@@ -152,8 +159,9 @@
     try {
       await deleteComment(id)
       comments = comments.filter((c) => c.id !== id)
-    } catch {
-      // silent
+      toast.success('Comment deleted')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to delete comment')
     }
   }
 
@@ -163,10 +171,13 @@
     deletingTicket = true
     try {
       await deleteTicket(ticket.id)
+      toast.success('Ticket deleted')
       ondelete?.(ticket.id)
       onclose()
     } catch (e) {
-      fieldError = e instanceof Error ? e.message : 'Delete failed'
+      const msg = e instanceof Error ? e.message : 'Delete failed'
+      fieldError = msg
+      toast.error(msg)
     } finally {
       deletingTicket = false
     }
