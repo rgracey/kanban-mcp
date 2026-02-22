@@ -1,7 +1,6 @@
 package api
 
 import (
-	"io"
 	"net/http"
 
 	chi "github.com/go-chi/chi/v5"
@@ -24,31 +23,23 @@ func NewRouter(s store.Store) http.Handler {
 	NewAPIRouter(api, s)
 	r.Mount("/api/v1", api)
 
-	// Serve embedded SPA for all non-API routes
-	r.Get("/*", func(w http.ResponseWriter, r *http.Request) {
-		var file string
-		if r.URL.Path == "/" || r.URL.Path == "" {
-			file = "dist/index.html"
-		} else {
-			// Try to serve the requested file
-			_, err := frontend.FS.ReadFile("dist" + r.URL.Path)
-			if err != nil {
-				// File not found, serve index.html for SPA client-side routing
-				file = "dist/index.html"
-			} else {
-				file = "dist" + r.URL.Path
+	// Serve embedded SPA for all non-API routes.
+	// http.FileServer handles Content-Type detection and ETag/Range support.
+	// Sub the FS root to "dist" so paths like /assets/index.js resolve correctly.
+	distFS, err := frontend.SubFS("dist")
+	if err != nil {
+		panic("frontend: failed to sub dist FS: " + err.Error())
+	}
+	fileServer := http.FileServer(http.FS(distFS))
+
+	r.Get("/*", func(w http.ResponseWriter, req *http.Request) {
+		// Check whether the file exists; if not, fall back to index.html (SPA routing).
+		if req.URL.Path != "/" {
+			if _, err := distFS.Open(req.URL.Path); err != nil {
+				req.URL.Path = "/"
 			}
 		}
-
-		f, err := frontend.FS.Open(file)
-		if err != nil {
-			http.Error(w, "Not found", http.StatusNotFound)
-			return
-		}
-		defer f.Close()
-
-		// Copy file content to response
-		io.Copy(w, f)
+		fileServer.ServeHTTP(w, req)
 	})
 
 	return r
