@@ -280,49 +280,48 @@
     });
   }
 
-  const eventLabels: Record<string, string> = {
-    created: "Created",
-    moved: "Moved",
-    edited: "Edited",
-    commented: "Commented",
-    task_added: "Task added",
-    task_updated: "Task updated",
-    task_deleted: "Task deleted",
-  };
-
   const eventIcons: Record<string, string> = {
-    created: "✦",
-    moved: "→",
-    edited: "✎",
-    commented: "💬",
-    task_added: "☐",
-    task_updated: "☑",
-    task_deleted: "✕",
-  };
+    created:      '✦',
+    moved:        '→',
+    edited:       '✎',
+    commented:    '💬',
+    task_added:   '☐',
+    task_updated: '☑',
+    task_deleted: '✕',
+  }
 
-  function eventSummary(ev: TicketEvent): string {
-    if (ev.type === "moved") {
-      const from = ev.payload?.from as string | undefined;
-      const to = ev.payload?.to as string | undefined;
-      if (from && to)
-        return `${from.replace(/_/g, " ")} → ${to.replace(/_/g, " ")}`;
+  function eventDescription(ev: TicketEvent): string {
+    const p = ev.payload ?? {}
+    switch (ev.type) {
+      case 'created':
+        return `Ticket created`
+      case 'moved': {
+        const from = (p.from as string | undefined)?.replace(/_/g, ' ')
+        const to   = (p.to   as string | undefined)?.replace(/_/g, ' ')
+        return from && to ? `Moved from ${from} → ${to}` : 'Status changed'
+      }
+      case 'edited': {
+        const fields = Object.keys(p)
+        return fields.length ? `Updated ${fields.join(', ')}` : 'Edited'
+      }
+      case 'commented':
+        return 'Comment added'
+      case 'task_added':
+        return p.task_title ? `Task added: "${p.task_title}"` : 'Task added'
+      case 'task_updated': {
+        const title = p.task_title as string | undefined
+        const done  = p.done as boolean | undefined
+        if (done !== undefined)
+          return `Task "${title}" marked ${done ? 'done' : 'not done'}`
+        if (p.title)
+          return `Task renamed to "${p.title}"`
+        return title ? `Task "${title}" updated` : 'Task updated'
+      }
+      case 'task_deleted':
+        return p.task_title ? `Task deleted: "${p.task_title}"` : 'Task deleted'
+      default:
+        return ev.type
     }
-    if (ev.type === "edited") {
-      const fields = Object.keys(ev.payload ?? {});
-      if (fields.length) return `Updated: ${fields.join(", ")}`;
-    }
-    if (ev.type === "task_added" || ev.type === "task_deleted") {
-      const taskTitle = ev.payload?.task_title as string | undefined;
-      if (taskTitle) return `"${taskTitle}"`;
-    }
-    if (ev.type === "task_updated") {
-      const taskTitle = ev.payload?.task_title as string | undefined;
-      const done = ev.payload?.done as boolean | undefined;
-      if (done !== undefined)
-        return `"${taskTitle}" marked ${done ? "done" : "undone"}`;
-      if (taskTitle) return `"${taskTitle}"`;
-    }
-    return "";
   }
 </script>
 
@@ -629,25 +628,13 @@
                     {eventIcons[ev.type] ?? "·"}
                   </span>
                   <div class="flex flex-col">
-                    <span
-                      class="text-xs font-medium text-gray-700 dark:text-gray-300"
-                    >
-                      {eventLabels[ev.type] ?? ev.type}
+                    <span class="text-xs font-medium text-gray-700 dark:text-gray-300">
+                      {eventDescription(ev)}
                       {#if ev.actor}
-                        <span
-                          class="font-normal text-gray-500 dark:text-gray-400"
-                          >by {ev.actor}</span
-                        >
+                        <span class="font-normal text-gray-500 dark:text-gray-400"> by {ev.actor}</span>
                       {/if}
                     </span>
-                    {#if eventSummary(ev)}
-                      <span class="text-xs text-gray-500 dark:text-gray-400"
-                        >{eventSummary(ev)}</span
-                      >
-                    {/if}
-                    <time class="text-xs text-gray-400"
-                      >{formatDate(ev.created_at)}</time
-                    >
+                    <time class="text-xs text-gray-400">{formatDate(ev.created_at)}</time>
                   </div>
                 </li>
               {/each}
