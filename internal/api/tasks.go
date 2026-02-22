@@ -39,10 +39,11 @@ func ListTasks(s store.Store) http.HandlerFunc {
 }
 
 // CreateTask creates a task for a ticket.
-func CreateTask(s store.Store) http.HandlerFunc {
+func CreateTask(s store.Store, hub *Hub) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := chi.URLParam(r, "id")
-		if _, err := s.GetTicket(r.Context(), id); err != nil {
+		ticket, err := s.GetTicket(r.Context(), id)
+		if err != nil {
 			if isNotFoundError(err) {
 				http.Error(w, `{"error": "not found"}`, http.StatusNotFound)
 				return
@@ -67,6 +68,7 @@ func CreateTask(s store.Store) http.HandlerFunc {
 			return
 		}
 
+		hub.Publish(SSEEvent{Type: "task.created", BoardID: ticket.BoardID})
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
 		json.NewEncoder(w).Encode(task)

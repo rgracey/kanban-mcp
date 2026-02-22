@@ -39,11 +39,21 @@ func ListComments(s store.Store) http.HandlerFunc {
 }
 
 // CreateComment creates a new comment
-func CreateComment(s store.Store) http.HandlerFunc {
+func CreateComment(s store.Store, hub *Hub) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ticketID := chi.URLParam(r, "id")
 		if ticketID == "" {
 			http.Error(w, `{"error": "ticket id is required"}`, http.StatusBadRequest)
+			return
+		}
+
+		ticket, err := s.GetTicket(r.Context(), ticketID)
+		if err != nil {
+			if isNotFoundError(err) {
+				http.Error(w, `{"error": "not found"}`, http.StatusNotFound)
+				return
+			}
+			http.Error(w, `{"error": "internal server error"}`, http.StatusInternalServerError)
 			return
 		}
 
@@ -65,6 +75,7 @@ func CreateComment(s store.Store) http.HandlerFunc {
 			return
 		}
 
+		hub.Publish(SSEEvent{Type: "comment.created", BoardID: ticket.BoardID})
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
 		json.NewEncoder(w).Encode(comment)

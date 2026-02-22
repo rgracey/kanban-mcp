@@ -51,6 +51,7 @@ func main() {
 	// Create store, MCP server, and API router
 	store := store.NewSQLiteStore(dbConn)
 	mcpSrv := internalmcp.NewServer(store)
+	hub := api.NewHub()
 
 	// When using HTTP transport, mount the MCP handler on /mcp within the main
 	// router so both the SPA/API and MCP share a single port.
@@ -60,7 +61,7 @@ func main() {
 		slog.Info("MCP HTTP handler mounted", "path", "/mcp", "port", cfg.Port)
 	}
 
-	router := api.NewRouter(store, mcpHandler)
+	router := api.NewRouter(store, hub, mcpHandler)
 
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%d", cfg.Port),

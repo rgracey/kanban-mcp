@@ -12,7 +12,7 @@ import (
 
 // NewRouter creates a new HTTP handler with all API routes mounted under /api/v1.
 // If mcpHandler is non-nil it is mounted at /mcp (Streamable HTTP MCP transport).
-func NewRouter(s store.Store, mcpHandler http.Handler) http.Handler {
+func NewRouter(s store.Store, hub *Hub, mcpHandler http.Handler) http.Handler {
 	r := chi.NewRouter()
 
 	// Standard middleware
@@ -27,7 +27,7 @@ func NewRouter(s store.Store, mcpHandler http.Handler) http.Handler {
 
 	// Mount API routes under /api/v1
 	api := chi.NewRouter()
-	NewAPIRouter(api, s)
+	NewAPIRouter(api, s, hub)
 	r.Mount("/api/v1", api)
 
 	// Serve embedded SPA for all non-API routes.
@@ -56,7 +56,9 @@ func NewRouter(s store.Store, mcpHandler http.Handler) http.Handler {
 }
 
 // NewAPIRouter mounts all API routes on the given chi router
-func NewAPIRouter(r chi.Router, s store.Store) {
+func NewAPIRouter(r chi.Router, s store.Store, hub *Hub) {
+	// SSE board-change stream
+	r.Get("/events", SSEHandler(hub))
 	// Boards
 	r.Route("/boards", func(r chi.Router) {
 		r.Get("/", ListBoards(s))
@@ -69,7 +71,7 @@ func NewAPIRouter(r chi.Router, s store.Store) {
 			r.Get("/epics", ListEpics(s))
 			r.Post("/epics", CreateEpic(s))
 			r.Get("/tickets", ListTickets(s))
-			r.Post("/tickets", CreateTicket(s))
+			r.Post("/tickets", CreateTicket(s, hub))
 		})
 	})
 
@@ -86,13 +88,13 @@ func NewAPIRouter(r chi.Router, s store.Store) {
 	r.Route("/tickets", func(r chi.Router) {
 		r.Route("/{id}", func(r chi.Router) {
 			r.Get("/", GetTicket(s))
-			r.Put("/", UpdateTicket(s))
-			r.Delete("/", DeleteTicket(s))
+			r.Put("/", UpdateTicket(s, hub))
+			r.Delete("/", DeleteTicket(s, hub))
 			r.Get("/comments", ListComments(s))
-			r.Post("/comments", CreateComment(s))
+			r.Post("/comments", CreateComment(s, hub))
 			r.Get("/events", ListTicketEvents(s))
 			r.Get("/tasks", ListTasks(s))
-			r.Post("/tasks", CreateTask(s))
+			r.Post("/tasks", CreateTask(s, hub))
 		})
 	})
 

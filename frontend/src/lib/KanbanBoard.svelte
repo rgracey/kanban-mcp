@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onDestroy } from 'svelte'
   import { toast } from 'svelte-sonner'
   import type { Ticket, Epic, Status } from './types.js'
   import { listTickets, listEpics, updateTicket } from './api.js'
@@ -43,6 +44,32 @@
   $effect(() => {
     boardId
     load()
+  })
+
+  // SSE: reload board when a change event arrives for this board
+  let es: EventSource | null = null
+
+  $effect(() => {
+    const currentBoardId = boardId
+    if (es) { es.close(); es = null }
+
+    es = new EventSource('/api/v1/events')
+    es.addEventListener('board_change', (e: MessageEvent) => {
+      try {
+        const ev = JSON.parse(e.data) as { type: string; board_id: string }
+        if (ev.board_id === currentBoardId) {
+          load()
+        }
+      } catch { /* ignore parse errors */ }
+    })
+    es.onerror = () => {
+      // browser will auto-reconnect; nothing to do
+    }
+  })
+
+  onDestroy(() => {
+    es?.close()
+    es = null
   })
 
   const filteredTickets = $derived(

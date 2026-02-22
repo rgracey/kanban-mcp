@@ -26,7 +26,7 @@ func setupAPITest(t *testing.T) (*httptest.Server, *store.SQLiteStore) {
 	require.NoError(t, err)
 
 	store := store.NewSQLiteStore(sqlDB)
-	router := NewRouter(store, nil)
+	router := NewRouter(store, NewHub(), nil)
 
 	server := httptest.NewServer(router)
 	t.Cleanup(func() {

@@ -73,7 +73,7 @@ func ListTickets(s store.Store) http.HandlerFunc {
 }
 
 // CreateTicket creates a new ticket
-func CreateTicket(s store.Store) http.HandlerFunc {
+func CreateTicket(s store.Store, hub *Hub) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		boardID := chi.URLParam(r, "id")
 		if boardID == "" {
@@ -138,6 +138,7 @@ func CreateTicket(s store.Store) http.HandlerFunc {
 			return
 		}
 
+		hub.Publish(SSEEvent{Type: "ticket.created", BoardID: boardID})
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
 		json.NewEncoder(w).Encode(ticket)
@@ -169,7 +170,7 @@ func GetTicket(s store.Store) http.HandlerFunc {
 }
 
 // UpdateTicket updates a ticket
-func UpdateTicket(s store.Store) http.HandlerFunc {
+func UpdateTicket(s store.Store, hub *Hub) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := chi.URLParam(r, "id")
 		if id == "" {
@@ -233,13 +234,14 @@ func UpdateTicket(s store.Store) http.HandlerFunc {
 			return
 		}
 
+		hub.Publish(SSEEvent{Type: "ticket.updated", BoardID: ticket.BoardID})
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(ticket)
 	}
 }
 
 // DeleteTicket deletes a ticket
-func DeleteTicket(s store.Store) http.HandlerFunc {
+func DeleteTicket(s store.Store, hub *Hub) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := chi.URLParam(r, "id")
 		if id == "" {
@@ -247,8 +249,9 @@ func DeleteTicket(s store.Store) http.HandlerFunc {
 			return
 		}
 
-		// Check if ticket exists first
-		if _, err := s.GetTicket(r.Context(), id); err != nil {
+		// Check if ticket exists first (also gives us boardID for the event)
+		ticket, err := s.GetTicket(r.Context(), id)
+		if err != nil {
 			if isNotFoundError(err) {
 				http.Error(w, `{"error": "not found"}`, http.StatusNotFound)
 				return
@@ -257,12 +260,12 @@ func DeleteTicket(s store.Store) http.HandlerFunc {
 			return
 		}
 
-		err := s.DeleteTicket(r.Context(), id)
-		if err != nil {
+		if err := s.DeleteTicket(r.Context(), id); err != nil {
 			http.Error(w, `{"error": "internal server error"}`, http.StatusInternalServerError)
 			return
 		}
 
+		hub.Publish(SSEEvent{Type: "ticket.deleted", BoardID: ticket.BoardID})
 		w.WriteHeader(http.StatusNoContent)
 	}
 }
