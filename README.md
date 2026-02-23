@@ -100,16 +100,16 @@ kanban-mcp --mcp-transport both   # HTTP + stdio simultaneously
 
 All tools use an action-dispatch pattern: one tool per resource, with an `action` parameter selecting the operation.
 
-| Tool | Actions | Key parameters |
-|---|---|---|
-| `board` | `list`, `get`, `create`, `update`, `delete`, `summary` | `id`, `name`, `description` |
-| `epic` | `list`, `get`, `create`, `update`, `delete` | `id`, `board_id`, `title`, `description` |
-| `ticket` | `list`, `get`, `create`, `update`, `delete`, `move` | `id`, `board_id`, `title`, `description`, `status`, `priority`, `epic_id`, `assignee`, filter/sort params, `include_comments`, `include_history` |
-| `task` | `list`, `create`, `update`, `delete` | `id`, `ticket_id`, `title`, `done` |
-| `comment` | `list`, `add`, `update`, `delete` | `id`, `ticket_id`, `body` |
-| `ticket_history` | _(single action)_ | `ticket_id` |
+| Tool             | Actions                                                | Key parameters                                                                                                                                   |
+| ---------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `board`          | `list`, `get`, `create`, `update`, `delete`, `summary` | `id`, `name`, `description`                                                                                                                      |
+| `epic`           | `list`, `get`, `create`, `update`, `delete`            | `id`, `board_id`, `title`, `description`                                                                                                         |
+| `ticket`         | `list`, `get`, `create`, `update`, `delete`, `move`    | `id`, `board_id`, `title`, `description`, `status`, `priority`, `epic_id`, `assignee`, filter/sort params, `include_comments`, `include_history` |
+| `task`           | `list`, `create`, `update`, `delete`                   | `id`, `ticket_id`, `title`, `done`                                                                                                               |
+| `comment`        | `list`, `add`, `update`, `delete`                      | `id`, `ticket_id`, `body`                                                                                                                        |
+| `ticket_history` | _(single action)_                                      | `ticket_id`                                                                                                                                      |
 
-Example — ask Claude: *"Create a board called 'Backend Rewrite', add an epic for authentication, and create three tickets under it."*
+Example — ask Claude: _"Create a board called 'Backend Rewrite', add an epic for authentication, and create three tickets under it."_
 
 ---
 
@@ -117,12 +117,12 @@ Example — ask Claude: *"Create a board called 'Backend Rewrite', add an epic f
 
 Flags take precedence over environment variables.
 
-| Flag | Env var | Default | Description |
-|---|---|---|---|
-| `--port` | `KANBAN_PORT` | `8080` | HTTP listen port |
-| `--db` | `KANBAN_DB` | `kanban.db` | Path to the SQLite database file |
-| `--mcp-transport` | `KANBAN_MCP_TRANSPORT` | `stdio` | `stdio`, `http`, or `both` |
-| `--log-level` | `KANBAN_LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error` |
+| Flag              | Env var                | Default     | Description                      |
+| ----------------- | ---------------------- | ----------- | -------------------------------- |
+| `--port`          | `KANBAN_PORT`          | `8080`      | HTTP listen port                 |
+| `--db`            | `KANBAN_DB`            | `kanban.db` | Path to the SQLite database file |
+| `--mcp-transport` | `KANBAN_MCP_TRANSPORT` | `stdio`     | `stdio`, `http`, or `both`       |
+| `--log-level`     | `KANBAN_LOG_LEVEL`     | `info`      | `debug`, `info`, `warn`, `error` |
 
 The database file is created automatically on first run. Migrations are applied automatically on startup.
 
@@ -180,73 +180,73 @@ Base path: `/api/v1`. All responses are JSON. All IDs are UUID v4. Timestamps ar
 <details>
 <summary>Boards</summary>
 
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/api/v1/boards` | List all boards |
-| `POST` | `/api/v1/boards` | Create a board (`name` required) |
-| `GET` | `/api/v1/boards/:id` | Get a board |
-| `PUT` | `/api/v1/boards/:id` | Update a board (partial) |
-| `DELETE` | `/api/v1/boards/:id` | Delete a board (cascades to epics, tickets, comments) |
-| `GET` | `/api/v1/boards/:id/summary` | Ticket counts by status + epic breakdown |
+| Method   | Path                         | Description                                           |
+| -------- | ---------------------------- | ----------------------------------------------------- |
+| `GET`    | `/api/v1/boards`             | List all boards                                       |
+| `POST`   | `/api/v1/boards`             | Create a board (`name` required)                      |
+| `GET`    | `/api/v1/boards/:id`         | Get a board                                           |
+| `PUT`    | `/api/v1/boards/:id`         | Update a board (partial)                              |
+| `DELETE` | `/api/v1/boards/:id`         | Delete a board (cascades to epics, tickets, comments) |
+| `GET`    | `/api/v1/boards/:id/summary` | Ticket counts by status + epic breakdown              |
 
 </details>
 
 <details>
 <summary>Epics</summary>
 
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/api/v1/boards/:id/epics` | List epics for a board |
-| `POST` | `/api/v1/boards/:id/epics` | Create an epic (`title` required) |
-| `GET` | `/api/v1/epics/:id` | Get an epic |
-| `PUT` | `/api/v1/epics/:id` | Update an epic (partial) |
-| `DELETE` | `/api/v1/epics/:id` | Delete an epic (tickets are kept, `epic_id` set to null) |
+| Method   | Path                       | Description                                              |
+| -------- | -------------------------- | -------------------------------------------------------- |
+| `GET`    | `/api/v1/boards/:id/epics` | List epics for a board                                   |
+| `POST`   | `/api/v1/boards/:id/epics` | Create an epic (`title` required)                        |
+| `GET`    | `/api/v1/epics/:id`        | Get an epic                                              |
+| `PUT`    | `/api/v1/epics/:id`        | Update an epic (partial)                                 |
+| `DELETE` | `/api/v1/epics/:id`        | Delete an epic (tickets are kept, `epic_id` set to null) |
 
 </details>
 
 <details>
 <summary>Tickets</summary>
 
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/api/v1/boards/:id/tickets` | List tickets (filter: `status`, `priority`, `epic_id`, `q`, `sort_by`, `sort_order`) |
-| `POST` | `/api/v1/boards/:id/tickets` | Create a ticket (`title` required; defaults: `status=todo`, `priority=medium`) |
-| `GET` | `/api/v1/tickets/:id` | Get a ticket |
-| `PUT` | `/api/v1/tickets/:id` | Update a ticket (any subset of fields; `epic_id: null` clears the epic) |
-| `DELETE` | `/api/v1/tickets/:id` | Delete a ticket (cascades to comments and tasks) |
+| Method   | Path                         | Description                                                                          |
+| -------- | ---------------------------- | ------------------------------------------------------------------------------------ |
+| `GET`    | `/api/v1/boards/:id/tickets` | List tickets (filter: `status`, `priority`, `epic_id`, `q`, `sort_by`, `sort_order`) |
+| `POST`   | `/api/v1/boards/:id/tickets` | Create a ticket (`title` required; defaults: `status=todo`, `priority=medium`)       |
+| `GET`    | `/api/v1/tickets/:id`        | Get a ticket                                                                         |
+| `PUT`    | `/api/v1/tickets/:id`        | Update a ticket (any subset of fields; `epic_id: null` clears the epic)              |
+| `DELETE` | `/api/v1/tickets/:id`        | Delete a ticket (cascades to comments and tasks)                                     |
 
 </details>
 
 <details>
 <summary>Tasks</summary>
 
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/api/v1/tickets/:id/tasks` | List tasks for a ticket |
-| `POST` | `/api/v1/tickets/:id/tasks` | Create a task (`title` required) |
-| `PUT` | `/api/v1/tasks/:id` | Update a task (`title`, `done`) |
-| `DELETE` | `/api/v1/tasks/:id` | Delete a task |
+| Method   | Path                        | Description                      |
+| -------- | --------------------------- | -------------------------------- |
+| `GET`    | `/api/v1/tickets/:id/tasks` | List tasks for a ticket          |
+| `POST`   | `/api/v1/tickets/:id/tasks` | Create a task (`title` required) |
+| `PUT`    | `/api/v1/tasks/:id`         | Update a task (`title`, `done`)  |
+| `DELETE` | `/api/v1/tasks/:id`         | Delete a task                    |
 
 </details>
 
 <details>
 <summary>Comments</summary>
 
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/api/v1/tickets/:id/comments` | List comments (ordered by `created_at` asc) |
-| `POST` | `/api/v1/tickets/:id/comments` | Add a comment (`body` required) |
-| `PUT` | `/api/v1/comments/:id` | Update a comment (`body` required) |
-| `DELETE` | `/api/v1/comments/:id` | Delete a comment |
+| Method   | Path                           | Description                                 |
+| -------- | ------------------------------ | ------------------------------------------- |
+| `GET`    | `/api/v1/tickets/:id/comments` | List comments (ordered by `created_at` asc) |
+| `POST`   | `/api/v1/tickets/:id/comments` | Add a comment (`body` required)             |
+| `PUT`    | `/api/v1/comments/:id`         | Update a comment (`body` required)          |
+| `DELETE` | `/api/v1/comments/:id`         | Delete a comment                            |
 
 </details>
 
 <details>
 <summary>Audit history</summary>
 
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/api/v1/tickets/:id/events` | List audit events for a ticket (ordered by `created_at` asc) |
+| Method | Path                         | Description                                                  |
+| ------ | ---------------------------- | ------------------------------------------------------------ |
+| `GET`  | `/api/v1/tickets/:id/events` | List audit events for a ticket (ordered by `created_at` asc) |
 
 </details>
 
