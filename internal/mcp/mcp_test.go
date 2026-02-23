@@ -162,9 +162,9 @@ func TestTicketWorkflow(t *testing.T) {
 	assert.Equal(t, "Fix bug", ticket.Title)
 	assert.Equal(t, models.StatusTodo, ticket.Status)
 
-	// move → in_progress
+	// update status → in_progress
 	moveRes := call(t, srv, "ticket", map[string]any{
-		"action": "move",
+		"action": "update",
 		"id":     ticket.ID,
 		"status": "in_progress",
 	})

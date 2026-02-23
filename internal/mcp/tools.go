@@ -253,8 +253,8 @@ func registerTools(srv *server.MCPServer, s store.Store) {
 	// -------------------------------------------------------------------------
 	srv.AddTool(
 		mcpgo.NewTool("ticket",
-			mcpgo.WithDescription("Manage tickets. action: list, get, create, bulk_create, update, delete, move, history"),
-			mcpgo.WithString("action", mcpgo.Required(), mcpgo.Description("list|get|create|bulk_create|update|delete|move|history")),
+			mcpgo.WithDescription("Manage tickets. action: list, get, create, bulk_create, update, delete, history"),
+			mcpgo.WithString("action", mcpgo.Required(), mcpgo.Description("list|get|create|bulk_create|update|delete|history")),
 			mcpgo.WithString("id", mcpgo.Description("Ticket ID (get/update/delete/move/history)")),
 			mcpgo.WithString("board_id", mcpgo.Description("Board ID (list/create/bulk_create)")),
 			mcpgo.WithString("title", mcpgo.Description("Title (create/update)")),
@@ -433,18 +433,6 @@ func registerTools(srv *server.MCPServer, s store.Store) {
 					return mcpgo.NewToolResultError(err.Error()), nil
 				}
 				return mcpgo.NewToolResultText("deleted"), nil
-
-			case "move":
-				id := getString("id")
-				status := getString("status")
-				if id == "" || status == "" {
-					return mcpgo.NewToolResultError("id and status required"), nil
-				}
-				ticket, err := s.UpdateTicket(ctx, id, map[string]any{"status": status})
-				if err != nil {
-					return mcpgo.NewToolResultError(err.Error()), nil
-				}
-				return jsonResult(ticket)
 
 			case "bulk_create":
 				boardID := getString("board_id")

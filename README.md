@@ -98,13 +98,13 @@ kanban-mcp --mcp-transport both   # HTTP + stdio simultaneously
 
 ## MCP tools
 
-All tools use an action-dispatch pattern: one tool per resource, with an `action` parameter selecting the operation.
+All tools use an action-dispatch pattern: one tool per resource, with an `action` parameter selecting the operation. List actions return `{"items": [...]}` (an object wrapper required by the MCP spec).
 
 | Tool       | Actions                                                                  | Key parameters                                                                                                                                  |
 | ---------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `board`    | `list`, `get`, `create`, `update`, `delete`, `summary`, `context`, `ready` | `id`, `name`, `description`                                                                                                                   |
+| `board`    | `list`, `get`, `create`, `update`, `delete`, `summary`, `context`, `ready` | `id`, `name`, `description`; context: `filter_status`, `omit_descriptions`                                                                    |
 | `epic`     | `list`, `get`, `create`, `update`, `delete`                              | `id`, `board_id`, `title`, `description`                                                                                                        |
-| `ticket`   | `list`, `get`, `create`, `bulk_create`, `update`, `delete`, `move`, `history` | `id`, `board_id`, `title`, `description`, `status`, `priority`, `epic_id`, `assignee`, filter/sort params, `include_notes`, `include_history` |
+| `ticket`   | `list`, `get`, `create`, `bulk_create`, `update`, `delete`, `history` | `id`, `board_id`, `title`, `description`, `status`, `priority`, `epic_id`, `assignee`; list: `filter_status`, `filter_priority`, `filter_epic_id`, `filter_assignee`, `q`, `sort_by`, `sort_order`; get: `include_notes`, `include_history`, `include_tasks`, `include_relations` |
 | `task`     | `list`, `create`, `update`, `delete`                                     | `id`, `ticket_id`, `title`, `done`                                                                                                              |
 | `note`     | `list`, `add`, `update`, `delete`                                        | `id`, `ticket_id`, `body`                                                                                                                       |
 | `relation` | `list`, `add`, `delete`                                                  | `ticket_id`, `to_ticket_id`                                                                                                                     |
