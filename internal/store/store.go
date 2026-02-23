@@ -11,6 +11,7 @@ type Store interface {
 	ListBoards(ctx context.Context) ([]models.Board, error)
 	CreateBoard(ctx context.Context, name, description string) (models.Board, error)
 	GetBoard(ctx context.Context, id string) (models.Board, error)
+	GetBoardByName(ctx context.Context, name string) (models.Board, error)
 	UpdateBoard(ctx context.Context, id string, name, description *string) (models.Board, error)
 	DeleteBoard(ctx context.Context, id string) error
 	GetBoardSummary(ctx context.Context, id string) (models.BoardSummary, error)

@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"os"
 
@@ -44,4 +45,21 @@ func jsonResult(v any) (*mcpgo.CallToolResult, error) {
 // is always a JSON object, which is required by the MCP spec.
 func jsonListResult(items any) (*mcpgo.CallToolResult, error) {
 	return jsonResult(map[string]any{"items": items})
+}
+
+// resolveBoardID returns id unchanged if non-empty. If id is empty and name is
+// non-empty it looks up the board by exact name and returns its ID. Returns an
+// error string suitable for NewToolResultError if neither resolves.
+func resolveBoardID(ctx context.Context, s store.Store, id, name string) (string, error) {
+	if id != "" {
+		return id, nil
+	}
+	if name != "" {
+		b, err := s.GetBoardByName(ctx, name)
+		if err != nil {
+			return "", fmt.Errorf("board with name %q not found", name)
+		}
+		return b.ID, nil
+	}
+	return "", fmt.Errorf("id or name required")
 }

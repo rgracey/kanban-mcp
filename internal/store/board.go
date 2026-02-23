@@ -70,6 +70,25 @@ func (s *SQLiteStore) GetBoard(ctx context.Context, id string) (models.Board, er
 	return b, nil
 }
 
+// GetBoardByName returns a board by exact name match.
+// Returns sql.ErrNoRows (wrapped) if not found.
+func (s *SQLiteStore) GetBoardByName(ctx context.Context, name string) (models.Board, error) {
+	query := `SELECT id, name, description, created_at, updated_at FROM boards WHERE name = ? LIMIT 1`
+	var b models.Board
+	var createdAt, updatedAt string
+	err := s.db.QueryRowContext(ctx, query, name).Scan(&b.ID, &b.Name, &b.Description, &createdAt, &updatedAt)
+	if err != nil {
+		return models.Board{}, err
+	}
+	if b.CreatedAt, err = rfc3339ToTime(createdAt); err != nil {
+		return models.Board{}, err
+	}
+	if b.UpdatedAt, err = rfc3339ToTime(updatedAt); err != nil {
+		return models.Board{}, err
+	}
+	return b, nil
+}
+
 // UpdateBoard updates a board's name and description (partial update).
 func (s *SQLiteStore) UpdateBoard(ctx context.Context, id string, name, description *string) (models.Board, error) {
 	// Build dynamic SET clause

@@ -79,6 +79,38 @@ func TestAllToolsRegistered(t *testing.T) {
 	assert.Len(t, tools, len(expected), "unexpected number of tools")
 }
 
+// TestBoardGetByName verifies board get/summary/context/ready work with name instead of id.
+func TestBoardGetByName(t *testing.T) {
+	srv := setupServer(t)
+
+	createRes := call(t, srv, "board", map[string]any{"action": "create", "name": "My Project"})
+	var board models.Board
+	decodeResult(t, createRes, &board)
+
+	// get by name
+	getRes := call(t, srv, "board", map[string]any{"action": "get", "name": "My Project"})
+	require.False(t, getRes.IsError)
+	var got models.Board
+	decodeResult(t, getRes, &got)
+	assert.Equal(t, board.ID, got.ID)
+
+	// not found returns error
+	badRes := call(t, srv, "board", map[string]any{"action": "get", "name": "No Such Board"})
+	assert.True(t, badRes.IsError)
+
+	// context by name
+	ctxRes := call(t, srv, "board", map[string]any{"action": "context", "name": "My Project"})
+	assert.False(t, ctxRes.IsError)
+
+	// ready by name
+	readyRes := call(t, srv, "board", map[string]any{"action": "ready", "name": "My Project"})
+	assert.False(t, readyRes.IsError)
+
+	// no id or name returns error
+	neitherRes := call(t, srv, "board", map[string]any{"action": "get"})
+	assert.True(t, neitherRes.IsError)
+}
+
 // TestBoardCRUD exercises board tool actions.
 func TestBoardCRUD(t *testing.T) {
 	srv := setupServer(t)

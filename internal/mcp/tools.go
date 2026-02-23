@@ -46,9 +46,9 @@ func registerTools(srv *server.MCPServer, s store.Store) {
 				return jsonListResult(boards)
 
 			case "get":
-				id := getString("id")
-				if id == "" {
-					return mcpgo.NewToolResultError("id required"), nil
+				id, err2 := resolveBoardID(ctx, s, getString("id"), getString("name"))
+				if err2 != nil {
+					return mcpgo.NewToolResultError(err2.Error()), nil
 				}
 				board, err := s.GetBoard(ctx, id)
 				if err != nil {
@@ -96,9 +96,9 @@ func registerTools(srv *server.MCPServer, s store.Store) {
 				return mcpgo.NewToolResultText("deleted"), nil
 
 			case "summary":
-				id := getString("id")
-				if id == "" {
-					return mcpgo.NewToolResultError("id required"), nil
+				id, err2 := resolveBoardID(ctx, s, getString("id"), getString("name"))
+				if err2 != nil {
+					return mcpgo.NewToolResultError(err2.Error()), nil
 				}
 				summary, err := s.GetBoardSummary(ctx, id)
 				if err != nil {
@@ -111,9 +111,9 @@ func registerTools(srv *server.MCPServer, s store.Store) {
 				// with embedded tasks and relations. Use this instead of multiple list
 				// calls when you need a complete picture of the board.
 				// filter_status and omit_descriptions can reduce token usage on large boards.
-				id := getString("id")
-				if id == "" {
-					return mcpgo.NewToolResultError("id required"), nil
+				id, err2 := resolveBoardID(ctx, s, getString("id"), getString("name"))
+				if err2 != nil {
+					return mcpgo.NewToolResultError(err2.Error()), nil
 				}
 				bctx, err := s.BoardContext(ctx, id)
 				if err != nil {
@@ -140,9 +140,9 @@ func registerTools(srv *server.MCPServer, s store.Store) {
 			case "ready":
 				// Returns unblocked todo tickets ordered by priority descending.
 				// Use this to get an agent's immediate work queue.
-				id := getString("id")
-				if id == "" {
-					return mcpgo.NewToolResultError("id required"), nil
+				id, err2 := resolveBoardID(ctx, s, getString("id"), getString("name"))
+				if err2 != nil {
+					return mcpgo.NewToolResultError(err2.Error()), nil
 				}
 				tickets, err := s.ReadyTickets(ctx, id)
 				if err != nil {
