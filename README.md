@@ -1,8 +1,11 @@
 # kanban-mcp
 
+![Kanban board screenshot](docs/images/kanban_logo.png)
+
 A self-contained kanban board server that works for both humans and AI agents.
 
 It ships as a single Go binary with no external dependencies: SQLite is embedded, the web UI is embedded, and the MCP server runs alongside the REST API on the same process. Spin it up and everything is immediately available.
+![Kanban board screenshot](docs/images/screenshot.png)
 
 ---
 
@@ -25,6 +28,8 @@ Most project management tools are either too heavy to self-host or have no machi
 - **Boards, epics, and tickets** with status (`todo` / `in progress` / `done`) and priority (`low` / `medium` / `high` / `critical`)
 - **Checklists** — per-ticket task lists with progress tracking
 - **Notes** — agent scratchpad notes on tickets, with edit support
+- **Blocking relations** — tickets can block other tickets; `ready` action returns unblocked work
+- **Bulk create** — create multiple tickets in a single call
 - **Assignees** — free-text assignee field per ticket
 - **Markdown** rendering in ticket descriptions
 - **Audit history** — every create, edit, move, note, and task change is recorded and shown in a timeline on the ticket
@@ -42,6 +47,18 @@ Most project management tools are either too heavy to self-host or have no machi
 - [Go](https://go.dev/dl/) 1.22 or later
 
 ### Download and run
+
+Download a pre-built binary from [GitHub Releases](https://github.com/rgracey/kanban-mcp/releases):
+
+```sh
+# macOS (Apple Silicon)
+curl -sL https://github.com/rgracey/kanban-mcp/releases/latest/download/kanban-mcp-darwin-arm64 -o kanban-mcp
+chmod +x kanban-mcp
+xattr -d com.apple.quarantine ./kanban-mcp
+./kanban-mcp
+```
+
+Or install with Go:
 
 ```sh
 go install github.com/rgracey/kanban-mcp@latest
@@ -100,16 +117,38 @@ kanban-mcp --mcp-transport both   # HTTP + stdio simultaneously
 
 All tools use an action-dispatch pattern: one tool per resource, with an `action` parameter selecting the operation. List actions return `{"items": [...]}` (an object wrapper required by the MCP spec).
 
-| Tool       | Actions                                                                  | Key parameters                                                                                                                                  |
-| ---------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `board`    | `list`, `get`, `create`, `update`, `delete`, `summary`, `context`, `ready` | `id` or `name` (get/summary/context/ready accept either); `description`; context: `filter_status`, `omit_descriptions`                        |
-| `epic`     | `list`, `get`, `create`, `update`, `delete`                              | `id`, `board_id`, `title`, `description`                                                                                                        |
-| `ticket`   | `list`, `get`, `create`, `bulk_create`, `update`, `delete`, `history` | `id`, `board_id`, `title`, `description`, `status`, `priority`, `epic_id`, `assignee`; list: `filter_status`, `filter_priority`, `filter_epic_id`, `filter_assignee`, `q`, `sort_by`, `sort_order`; get: `include_notes`, `include_history`, `include_tasks`, `include_relations` |
-| `task`     | `list`, `create`, `update`, `delete`                                     | `id`, `ticket_id`, `title`, `done`                                                                                                              |
-| `note`     | `list`, `add`, `update`, `delete`                                        | `id`, `ticket_id`, `body`                                                                                                                       |
-| `relation` | `list`, `add`, `delete`                                                  | `ticket_id`, `to_ticket_id`                                                                                                                     |
+| Tool       | Actions                                                                    | Key parameters                                                                                                                                                                                                                                                                                                                                                   |
+| ---------- | -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `board`    | `list`, `get`, `create`, `update`, `delete`, `summary`, `context`, `ready` | `id` or `name` (get/summary/context/ready accept either); `description`; context: `filter_status`, `omit_descriptions`; ready: returns unblocked todo tickets sorted by priority                                                                                                                                                                                 |
+| `epic`     | `list`, `get`, `create`, `update`, `delete`                                | `id`, `board_id`, `title`, `description`                                                                                                                                                                                                                                                                                                                         |
+| `ticket`   | `list`, `get`, `create`, `bulk_create`, `update`, `delete`, `history`      | `id`, `board_id`, `title`, `description`, `status`, `priority`, `epic_id`, `assignee`, `resolution_json`; list: `filter_status`, `filter_priority`, `filter_epic_id`, `filter_assignee`, `q` (searches title + description), `sort_by`, `sort_order`; get: `include_notes`, `include_history`, `include_tasks`, `include_relations`; bulk_create: `tickets_json` |
+| `task`     | `list`, `create`, `update`, `delete`                                       | `id`, `ticket_id`, `title`, `done`                                                                                                                                                                                                                                                                                                                               |
+| `note`     | `list`, `add`, `update`, `delete`                                          | `id`, `ticket_id`, `body`                                                                                                                                                                                                                                                                                                                                        |
+| `relation` | `list`, `add`, `delete`                                                    | `ticket_id`, `to_ticket_id`                                                                                                                                                                                                                                                                                                                                      |
 
-Example — ask Claude: _"Create a board called 'Backend Rewrite', add an epic for authentication, and create three tickets under it."_
+### Special actions
+
+- **`board context`** — Returns a complete snapshot: board metadata, all epics, and all tickets with embedded tasks and blocking relations. Use this instead of multiple list calls when you need the full picture. `filter_status` and `omit_descriptions` reduce token usage on large boards.
+- **`board ready`** — Returns unblocked `todo` tickets ordered by priority (critical → low). Use this to get an agent's immediate work queue.
+- **`ticket bulk_create`** — Create multiple tickets in one call via `tickets_json` (a JSON array of ticket objects).
+- **`resolution_json`** — On ticket create/update, record structured resolution data (e.g., `{"commit_sha":"abc123","pr_url":"https://...","notes":"Fixed by ..."}`). Pass `"null"` to clear.
+
+### Example
+
+Ask Claude: _"Create a board called 'Backend Rewrite', add an epic for authentication, and create three tickets under it."_
+
+Or call a tool directly:
+
+```json
+{
+  "action": "create",
+  "board_id": "uuid-here",
+  "title": "Add OAuth2 support",
+  "description": "Implement OAuth2 login flow",
+  "priority": "high",
+  "epic_id": "epic-uuid-here"
+}
+```
 
 ---
 
@@ -180,14 +219,14 @@ Base path: `/api/v1`. All responses are JSON. All IDs are UUID v4. Timestamps ar
 <details>
 <summary>Boards</summary>
 
-| Method   | Path                         | Description                                           |
-| -------- | ---------------------------- | ----------------------------------------------------- |
-| `GET`    | `/api/v1/boards`             | List all boards                                       |
-| `POST`   | `/api/v1/boards`             | Create a board (`name` required)                      |
-| `GET`    | `/api/v1/boards/:id`         | Get a board                                           |
-| `PUT`    | `/api/v1/boards/:id`         | Update a board (partial)                              |
+| Method   | Path                         | Description                                        |
+| -------- | ---------------------------- | -------------------------------------------------- |
+| `GET`    | `/api/v1/boards`             | List all boards                                    |
+| `POST`   | `/api/v1/boards`             | Create a board (`name` required)                   |
+| `GET`    | `/api/v1/boards/:id`         | Get a board                                        |
+| `PUT`    | `/api/v1/boards/:id`         | Update a board (partial)                           |
 | `DELETE` | `/api/v1/boards/:id`         | Delete a board (cascades to epics, tickets, notes) |
-| `GET`    | `/api/v1/boards/:id/summary` | Ticket counts by status + epic breakdown              |
+| `GET`    | `/api/v1/boards/:id/summary` | Ticket counts by status + epic breakdown           |
 
 </details>
 
@@ -239,6 +278,17 @@ Base path: `/api/v1`. All responses are JSON. All IDs are UUID v4. Timestamps ar
 | `GET`    | `/api/v1/notes/:id`         | Get a note                               |
 | `PUT`    | `/api/v1/notes/:id`         | Update a note (`body` required)          |
 | `DELETE` | `/api/v1/notes/:id`         | Delete a note                            |
+
+</details>
+
+<details>
+<summary>Blocking relations</summary>
+
+| Method   | Path                                  | Description                                       |
+| -------- | ------------------------------------- | ------------------------------------------------- |
+| `GET`    | `/api/v1/tickets/:id/relations`       | List tickets blocked by this ticket               |
+| `POST`   | `/api/v1/tickets/:id/relations`       | Add a blocking relation (`to_ticket_id` required) |
+| `DELETE` | `/api/v1/tickets/:id/relations/:toId` | Remove a blocking relation                        |
 
 </details>
 
