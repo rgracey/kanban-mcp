@@ -302,8 +302,31 @@
         return from && to ? `Moved from ${from} → ${to}` : 'Status changed'
       }
       case 'edited': {
-        const fields = Object.keys(p)
-        return fields.length ? `Updated ${fields.join(', ')}` : 'Edited'
+        const fieldLabels: Record<string, string> = {
+          title:       'title',
+          description: 'description',
+          priority:    'priority',
+          assignee:    'assignee',
+          epic_id:     'epic',
+        }
+        const parts: string[] = []
+        for (const [k, v] of Object.entries(p)) {
+          const label = fieldLabels[k] ?? k
+          if (k === 'epic_id') {
+            parts.push(v == null ? 'Epic cleared' : `Epic set`)
+          } else if (k === 'priority' || k === 'status') {
+            parts.push(`${label.charAt(0).toUpperCase() + label.slice(1)} set to ${String(v).replace(/_/g, ' ')}`)
+          } else if (k === 'assignee') {
+            parts.push(v ? `Assigned to ${v}` : 'Assignee cleared')
+          } else if (k === 'title') {
+            parts.push(`Title updated`)
+          } else if (k === 'description') {
+            parts.push(`Description updated`)
+          } else {
+            parts.push(`${label} updated`)
+          }
+        }
+        return parts.length ? parts.join('; ') : 'Edited'
       }
       case 'commented':
         return 'Comment added'
