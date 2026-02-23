@@ -10,23 +10,22 @@
   let { epics, selectedEpicId, onchange }: Props = $props()
 </script>
 
-<div class="flex gap-2 flex-wrap items-center">
-  <span class="text-sm font-medium text-gray-500 mr-1">Epic:</span>
+<div class="flex gap-1.5 flex-wrap items-center">
   <button
-    class="px-3 py-1 rounded-full text-sm font-medium transition-colors
+    class="px-2.5 py-1 rounded-md text-xs font-medium transition-colors
       {selectedEpicId === null
-        ? 'bg-indigo-600 text-white'
-        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}"
+        ? 'bg-indigo-600 text-white shadow-sm'
+        : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-800 dark:hover:text-gray-200'}"
     onclick={() => onchange(null)}
   >
     All
   </button>
   {#each epics as epic (epic.id)}
     <button
-      class="px-3 py-1 rounded-full text-sm font-medium transition-colors
+      class="px-2.5 py-1 rounded-md text-xs font-medium transition-colors
         {selectedEpicId === epic.id
-          ? 'bg-indigo-600 text-white'
-          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}"
+          ? 'bg-indigo-600 text-white shadow-sm'
+          : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-800 dark:hover:text-gray-200'}"
       onclick={() => onchange(epic.id)}
     >
       {epic.title}

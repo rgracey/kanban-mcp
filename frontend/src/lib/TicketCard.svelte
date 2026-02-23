@@ -14,41 +14,67 @@
 
   let showDetail = $state(false)
 
-  const priorityClasses: Record<string, string> = {
-    low: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
-    medium: 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300',
-    high: 'bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300',
-    critical: 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300',
+  const priorityConfig: Record<string, { label: string; classes: string }> = {
+    low:      { label: 'Low',      classes: 'bg-gray-100 text-gray-500 dark:bg-gray-700/60 dark:text-gray-400' },
+    medium:   { label: 'Med',      classes: 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-400' },
+    high:     { label: 'High',     classes: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400' },
+    critical: { label: 'Crit',     classes: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400' },
   }
 
-  const statusBorder: Record<string, string> = {
-    todo: 'border-l-4 border-l-gray-300 dark:border-l-gray-600',
-    in_progress: 'border-l-4 border-l-blue-400 dark:border-l-blue-500',
-    done: 'border-l-4 border-l-green-400 dark:border-l-green-500',
+  const statusAccent: Record<string, string> = {
+    todo:        'border-l-gray-300 dark:border-l-gray-600',
+    in_progress: 'border-l-blue-400 dark:border-l-blue-500',
+    done:        'border-l-emerald-400 dark:border-l-emerald-500',
   }
 
   const epicName = $derived(
     ticket.epic_id ? epics.find((e) => e.id === ticket.epic_id)?.title ?? null : null
   )
+
+  function getInitials(name: string): string {
+    return name
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((p) => p[0].toUpperCase())
+      .join('')
+  }
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
 <div
   role="button"
   tabindex="0"
-  class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-3 cursor-pointer hover:shadow-md transition-shadow select-none {statusBorder[ticket.status]}"
+  class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700/80 border-l-4 {statusAccent[ticket.status]} p-3 cursor-pointer hover:shadow-md hover:border-gray-300 dark:hover:border-gray-600 transition-all select-none"
   onclick={() => (showDetail = true)}
   onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') showDetail = true }}
 >
-  <p class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2 leading-snug">{ticket.title}</p>
-  <div class="flex items-center gap-2 flex-wrap">
-    <span class="px-2 py-0.5 rounded text-xs font-semibold {priorityClasses[ticket.priority]}">
-      {ticket.priority}
-    </span>
-    {#if epicName}
-      <span class="px-2 py-0.5 rounded text-xs bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300 font-medium">
-        {epicName}
+  <!-- Title -->
+  <p class="text-sm font-medium text-gray-900 dark:text-gray-100 leading-snug mb-2.5">{ticket.title}</p>
+
+  <!-- Footer row: badges + assignee -->
+  <div class="flex items-center justify-between gap-2">
+    <div class="flex items-center gap-1.5 flex-wrap min-w-0">
+      <!-- Priority -->
+      <span class="px-1.5 py-0.5 rounded text-[11px] font-semibold {priorityConfig[ticket.priority]?.classes ?? ''}">
+        {priorityConfig[ticket.priority]?.label ?? ticket.priority}
       </span>
+      <!-- Epic -->
+      {#if epicName}
+        <span class="px-1.5 py-0.5 rounded text-[11px] font-medium bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300 truncate max-w-[120px]">
+          {epicName}
+        </span>
+      {/if}
+    </div>
+
+    <!-- Assignee avatar -->
+    {#if ticket.assignee}
+      <div
+        class="shrink-0 w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 flex items-center justify-center text-[10px] font-semibold"
+        title={ticket.assignee}
+      >
+        {getInitials(ticket.assignee)}
+      </div>
     {/if}
   </div>
 </div>

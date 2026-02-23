@@ -56,51 +56,56 @@
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <div
   role="presentation"
-  class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+  class="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-50 p-4 backdrop-blur-sm"
   onclick={(e) => { if (e.target === e.currentTarget) onclose() }}
 >
   <div
     role="dialog"
     aria-modal="true"
     tabindex="-1"
-    class="bg-white rounded-xl shadow-xl w-full max-w-lg p-6"
+    class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl w-full max-w-lg p-6"
   >
     <div class="flex justify-between items-start mb-5">
-      <h2 class="text-lg font-semibold text-gray-900">New Ticket</h2>
-      <button class="text-gray-400 hover:text-gray-600 text-xl leading-none" onclick={onclose}>&times;</button>
+      <h2 class="text-base font-semibold text-gray-900 dark:text-gray-100">New Ticket</h2>
+      <button
+        class="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-lg leading-none"
+        onclick={onclose}
+        aria-label="Close"
+      >&times;</button>
     </div>
 
     {#if error}
-      <p class="text-red-600 text-sm mb-3">{error}</p>
+      <p class="text-red-500 text-sm mb-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg px-3 py-2">{error}</p>
     {/if}
 
     <div class="space-y-4">
       <div>
-        <label for="ct-title" class="block text-sm font-medium text-gray-700 mb-1">Title *</label>
+        <label for="ct-title" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Title <span class="text-red-500">*</span></label>
         <input
           id="ct-title"
-          class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          class="w-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-lg px-3 py-2 text-sm placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-shadow"
           placeholder="Ticket title"
           bind:value={title}
         />
       </div>
 
       <div>
-        <label for="ct-desc" class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+        <label for="ct-desc" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Description</label>
         <textarea
           id="ct-desc"
-          class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+          class="w-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-lg px-3 py-2 text-sm placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none transition-shadow"
           rows="3"
+          placeholder="Optional description (Markdown supported)"
           bind:value={description}
         ></textarea>
       </div>
 
-      <div class="flex gap-4">
-        <div class="flex-1">
-          <label for="ct-priority" class="block text-sm font-medium text-gray-700 mb-1">Priority</label>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label for="ct-priority" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Priority</label>
           <select
             id="ct-priority"
-            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            class="w-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-shadow"
             bind:value={priority}
           >
             <option value="low">Low</option>
@@ -110,11 +115,11 @@
           </select>
         </div>
 
-        <div class="flex-1">
-          <label for="ct-epic" class="block text-sm font-medium text-gray-700 mb-1">Epic</label>
+        <div>
+          <label for="ct-epic" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Epic</label>
           <select
             id="ct-epic"
-            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            class="w-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-shadow"
             bind:value={epicId}
           >
             <option value="">None</option>
@@ -124,11 +129,12 @@
           </select>
         </div>
       </div>
+
       <div>
-        <label for="ct-assignee" class="block text-sm font-medium text-gray-700 mb-1">Assignee</label>
+        <label for="ct-assignee" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Assignee</label>
         <input
           id="ct-assignee"
-          class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          class="w-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-lg px-3 py-2 text-sm placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-shadow"
           placeholder="Leave blank to leave unassigned"
           bind:value={assignee}
         />
@@ -137,12 +143,12 @@
 
     <div class="flex justify-end gap-2 mt-6">
       <button
-        class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+        class="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
         onclick={onclose}
         disabled={submitting}
       >Cancel</button>
       <button
-        class="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50"
+        class="px-4 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 shadow-sm"
         onclick={submit}
         disabled={submitting}
       >{submitting ? 'Creating...' : 'Create Ticket'}</button>

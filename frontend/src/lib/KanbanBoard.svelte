@@ -127,28 +127,40 @@
 </script>
 
 <div class="flex flex-col gap-4 h-full">
-  <div class="flex items-center justify-between flex-wrap gap-2">
-    <EpicFilter {epics} {selectedEpicId} onchange={(id) => (selectedEpicId = id)} />
-    <div class="flex gap-2">
+  <!-- Toolbar -->
+  <div class="flex items-center justify-between gap-3 flex-wrap">
+    <!-- Left: epic filter -->
+    <div class="flex items-center gap-2 min-w-0">
+      <span class="text-xs font-medium text-gray-400 dark:text-gray-500 shrink-0">Epic</span>
+      <EpicFilter {epics} {selectedEpicId} onchange={(id) => (selectedEpicId = id)} />
+    </div>
+    <!-- Right: action buttons -->
+    <div class="flex items-center gap-2 shrink-0">
       <button
-        class="px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+        class="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 text-sm font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/70 hover:border-gray-300 dark:hover:border-gray-600 transition-colors"
         onclick={() => (showCreateEpic = true)}
       >
-        + New Epic
+        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+        </svg>
+        Epic
       </button>
       <button
-        class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
+        class="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
         onclick={() => (showCreateTicket = true)}
       >
-        + New Ticket
+        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+        </svg>
+        New Ticket
       </button>
     </div>
   </div>
 
   {#if loading}
-    <div class="flex items-center justify-center h-64 text-gray-400">Loading...</div>
+    <div class="flex items-center justify-center h-64 text-gray-400 text-sm">Loading...</div>
   {:else if error}
-    <div class="flex items-center justify-center h-64 text-red-500">{error}</div>
+    <div class="flex items-center justify-center h-64 text-red-500 text-sm">{error}</div>
   {:else}
     <div class="grid grid-cols-3 gap-4 flex-1">
       {#each columns as col (col.status)}
