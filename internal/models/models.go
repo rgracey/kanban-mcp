@@ -88,17 +88,37 @@ type Task struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+type RelationKind string
+
+const (
+	RelationBlocks RelationKind = "blocks"
+)
+
+// TicketRelation represents a directional relation between two tickets.
+// from_ticket_id blocks to_ticket_id.
+type TicketRelation struct {
+	FromTicketID string       `json:"from_ticket_id"`
+	ToTicketID   string       `json:"to_ticket_id"`
+	Kind         RelationKind `json:"kind"`
+	CreatedAt    time.Time    `json:"created_at"`
+	// Denormalised title fields populated on list queries
+	FromTitle string `json:"from_title,omitempty"`
+	ToTitle   string `json:"to_title,omitempty"`
+}
+
 type TicketEventType string
 
 const (
-	EventCreated       TicketEventType = "created"
-	EventMoved         TicketEventType = "moved"
-	EventEdited        TicketEventType = "edited"
-	EventCommented     TicketEventType = "commented"
-	EventCommentEdited TicketEventType = "comment_edited"
-	EventTaskAdded     TicketEventType = "task_added"
-	EventTaskUpdated   TicketEventType = "task_updated"
-	EventTaskDeleted   TicketEventType = "task_deleted"
+	EventCreated         TicketEventType = "created"
+	EventMoved           TicketEventType = "moved"
+	EventEdited          TicketEventType = "edited"
+	EventCommented       TicketEventType = "commented"
+	EventCommentEdited   TicketEventType = "comment_edited"
+	EventTaskAdded       TicketEventType = "task_added"
+	EventTaskUpdated     TicketEventType = "task_updated"
+	EventTaskDeleted     TicketEventType = "task_deleted"
+	EventRelationAdded   TicketEventType = "relation_added"
+	EventRelationRemoved TicketEventType = "relation_removed"
 )
 
 type TicketEvent struct {

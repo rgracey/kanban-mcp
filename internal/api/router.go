@@ -72,6 +72,7 @@ func NewAPIRouter(r chi.Router, s store.Store, hub *Hub) {
 			r.Post("/epics", CreateEpic(s))
 			r.Get("/tickets", ListTickets(s))
 			r.Post("/tickets", CreateTicket(s, hub))
+			r.Post("/tickets/bulk", BulkCreateTickets(s, hub))
 		})
 	})
 
@@ -95,6 +96,9 @@ func NewAPIRouter(r chi.Router, s store.Store, hub *Hub) {
 			r.Get("/events", ListTicketEvents(s))
 			r.Get("/tasks", ListTasks(s))
 			r.Post("/tasks", CreateTask(s, hub))
+			r.Get("/relations", ListRelations(s))
+			r.Post("/relations", AddRelation(s))
+			r.Delete("/relations/{toId}", DeleteRelation(s))
 		})
 	})
 

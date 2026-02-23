@@ -58,6 +58,7 @@ func TestAllToolsRegistered(t *testing.T) {
 		"task",
 		"comment",
 		"ticket_history",
+		"relation",
 	}
 	tools := srv.ListTools()
 	for _, name := range expected {

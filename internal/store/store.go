@@ -45,4 +45,12 @@ type Store interface {
 	CreateTask(ctx context.Context, ticketID, title string) (models.Task, error)
 	UpdateTask(ctx context.Context, id string, title *string, done *bool) (models.Task, error)
 	DeleteTask(ctx context.Context, id string) error
+
+	// Ticket relations
+	ListRelations(ctx context.Context, ticketID string) ([]models.TicketRelation, error)
+	AddRelation(ctx context.Context, fromTicketID, toTicketID string, kind models.RelationKind) (models.TicketRelation, error)
+	DeleteRelation(ctx context.Context, fromTicketID, toTicketID string, kind models.RelationKind) error
+
+	// Bulk operations
+	BulkCreateTickets(ctx context.Context, boardID string, tickets []models.Ticket) ([]models.Ticket, error)
 }

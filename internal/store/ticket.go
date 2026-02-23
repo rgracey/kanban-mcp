@@ -239,3 +239,63 @@ func (s *SQLiteStore) DeleteTicket(ctx context.Context, id string) error {
 	_, err := s.db.ExecContext(ctx, query, id)
 	return err
 }
+
+// BulkCreateTickets creates multiple tickets in a single transaction.
+// All tickets succeed or all fail.
+func (s *SQLiteStore) BulkCreateTickets(ctx context.Context, boardID string, tickets []models.Ticket) ([]models.Ticket, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback() //nolint:errcheck
+
+	now := time.Now()
+	createdAt := timeToRFC3339(now)
+
+	query := `INSERT INTO tickets (id, board_id, epic_id, title, description, status, priority, assignee, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+
+	created := make([]models.Ticket, 0, len(tickets))
+	for _, t := range tickets {
+		id := newUUID()
+		epicID := sql.NullString{}
+		if t.EpicID != nil {
+			epicID = sql.NullString{String: *t.EpicID, Valid: true}
+		}
+		if t.Status == "" {
+			t.Status = models.StatusTodo
+		}
+		if t.Priority == "" {
+			t.Priority = models.PriorityMedium
+		}
+		if _, err := tx.ExecContext(ctx, query, id, boardID, epicID, t.Title, t.Description, t.Status, t.Priority, t.Assignee, createdAt, createdAt); err != nil {
+			return nil, err
+		}
+		created = append(created, models.Ticket{
+			ID:          id,
+			BoardID:     boardID,
+			EpicID:      t.EpicID,
+			Title:       t.Title,
+			Description: t.Description,
+			Status:      t.Status,
+			Priority:    t.Priority,
+			Assignee:    t.Assignee,
+			CreatedAt:   now,
+			UpdatedAt:   now,
+		})
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	// Emit audit events outside the transaction (best-effort)
+	for _, t := range created {
+		_, _ = s.CreateTicketEvent(ctx, t.ID, models.EventCreated, "", map[string]any{
+			"title":    t.Title,
+			"status":   string(t.Status),
+			"priority": string(t.Priority),
+		})
+	}
+
+	return created, nil
+}

@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	mcpgo "github.com/mark3labs/mcp-go/mcp"
@@ -206,10 +207,10 @@ func registerTools(srv *server.MCPServer, s store.Store) {
 	// -------------------------------------------------------------------------
 	srv.AddTool(
 		mcpgo.NewTool("ticket",
-			mcpgo.WithDescription("Manage tickets. action: list, get, create, update, delete, move"),
-			mcpgo.WithString("action", mcpgo.Required(), mcpgo.Description("list|get|create|update|delete|move")),
+			mcpgo.WithDescription("Manage tickets. action: list, get, create, bulk_create, update, delete, move"),
+			mcpgo.WithString("action", mcpgo.Required(), mcpgo.Description("list|get|create|bulk_create|update|delete|move")),
 			mcpgo.WithString("id", mcpgo.Description("Ticket ID (get/update/delete/move)")),
-			mcpgo.WithString("board_id", mcpgo.Description("Board ID (list/create)")),
+			mcpgo.WithString("board_id", mcpgo.Description("Board ID (list/create/bulk_create)")),
 			mcpgo.WithString("title", mcpgo.Description("Title (create/update)")),
 			mcpgo.WithString("description", mcpgo.Description("Description (create/update)")),
 			mcpgo.WithString("status", mcpgo.Description("todo|in_progress|done")),
@@ -224,6 +225,7 @@ func registerTools(srv *server.MCPServer, s store.Store) {
 			mcpgo.WithString("sort_order", mcpgo.Description("asc|desc (list)")),
 			mcpgo.WithBoolean("include_comments", mcpgo.Description("Embed comments (get)")),
 			mcpgo.WithBoolean("include_history", mcpgo.Description("Embed audit history (get)")),
+			mcpgo.WithString("tickets_json", mcpgo.Description(`JSON array of ticket objects for bulk_create, e.g. [{"title":"T1","priority":"high"},{"title":"T2"}]`)),
 		),
 		func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 			action, err := req.RequireString("action")
@@ -360,6 +362,52 @@ func registerTools(srv *server.MCPServer, s store.Store) {
 					return mcpgo.NewToolResultError(err.Error()), nil
 				}
 				return jsonResult(ticket)
+
+			case "bulk_create":
+				boardID := getString("board_id")
+				if boardID == "" {
+					return mcpgo.NewToolResultError("board_id required"), nil
+				}
+				raw := getString("tickets_json")
+				if raw == "" {
+					return mcpgo.NewToolResultError("tickets_json required — JSON array of ticket objects"), nil
+				}
+				var inputs []struct {
+					Title       string `json:"title"`
+					Description string `json:"description"`
+					Status      string `json:"status"`
+					Priority    string `json:"priority"`
+					EpicID      string `json:"epic_id"`
+					Assignee    string `json:"assignee"`
+				}
+				if err := json.Unmarshal([]byte(raw), &inputs); err != nil {
+					return mcpgo.NewToolResultError("tickets_json is not valid JSON: " + err.Error()), nil
+				}
+				if len(inputs) == 0 {
+					return mcpgo.NewToolResultError("tickets_json must contain at least one ticket"), nil
+				}
+				tickets := make([]models.Ticket, 0, len(inputs))
+				for _, inp := range inputs {
+					if inp.Title == "" {
+						return mcpgo.NewToolResultError("every ticket must have a title"), nil
+					}
+					t := models.Ticket{
+						Title:       inp.Title,
+						Description: inp.Description,
+						Status:      models.Status(inp.Status),
+						Priority:    models.Priority(inp.Priority),
+						Assignee:    inp.Assignee,
+					}
+					if inp.EpicID != "" {
+						t.EpicID = &inp.EpicID
+					}
+					tickets = append(tickets, t)
+				}
+				created, err := s.BulkCreateTickets(ctx, boardID, tickets)
+				if err != nil {
+					return mcpgo.NewToolResultError(err.Error()), nil
+				}
+				return jsonResult(created)
 
 			default:
 				return mcpgo.NewToolResultError(fmt.Sprintf("unknown action %q", action)), nil
@@ -541,6 +589,71 @@ func registerTools(srv *server.MCPServer, s store.Store) {
 				return mcpgo.NewToolResultError(err.Error()), nil
 			}
 			return jsonResult(events)
+		},
+	)
+
+	// -------------------------------------------------------------------------
+	// relation — list | add | delete
+	// -------------------------------------------------------------------------
+	srv.AddTool(
+		mcpgo.NewTool("relation",
+			mcpgo.WithDescription("Manage blocking relations between tickets. action: list, add, delete"),
+			mcpgo.WithString("action", mcpgo.Required(), mcpgo.Description("list|add|delete")),
+			mcpgo.WithString("ticket_id", mcpgo.Description("Ticket ID (list/add/delete)")),
+			mcpgo.WithString("to_ticket_id", mcpgo.Description("ID of the ticket being blocked (add/delete)")),
+		),
+		func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
+			action, err := req.RequireString("action")
+			if err != nil {
+				return mcpgo.NewToolResultError(err.Error()), nil
+			}
+			args := req.GetArguments()
+			getString := func(k string) string {
+				v, _ := args[k].(string)
+				return v
+			}
+
+			switch action {
+			case "list":
+				ticketID := getString("ticket_id")
+				if ticketID == "" {
+					return mcpgo.NewToolResultError("ticket_id required"), nil
+				}
+				relations, err := s.ListRelations(ctx, ticketID)
+				if err != nil {
+					return mcpgo.NewToolResultError(err.Error()), nil
+				}
+				return jsonResult(relations)
+
+			case "add":
+				fromID := getString("ticket_id")
+				toID := getString("to_ticket_id")
+				if fromID == "" || toID == "" {
+					return mcpgo.NewToolResultError("ticket_id and to_ticket_id required"), nil
+				}
+				if fromID == toID {
+					return mcpgo.NewToolResultError("a ticket cannot block itself"), nil
+				}
+				rel, err := s.AddRelation(ctx, fromID, toID, models.RelationBlocks)
+				if err != nil {
+					return mcpgo.NewToolResultError(err.Error()), nil
+				}
+				return jsonResult(rel)
+
+			case "delete":
+				fromID := getString("ticket_id")
+				toID := getString("to_ticket_id")
+				if fromID == "" || toID == "" {
+					return mcpgo.NewToolResultError("ticket_id and to_ticket_id required"), nil
+				}
+				if err := s.DeleteRelation(ctx, fromID, toID, models.RelationBlocks); err != nil {
+					return mcpgo.NewToolResultError(err.Error()), nil
+				}
+				return mcpgo.NewToolResultText("deleted"), nil
+
+			default:
+				return mcpgo.NewToolResultError(fmt.Sprintf("unknown action %q", action)), nil
+			}
 		},
 	)
 }

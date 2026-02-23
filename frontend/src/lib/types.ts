@@ -49,7 +49,22 @@ export interface Task {
   updated_at: string
 }
 
-export type TicketEventType = 'created' | 'moved' | 'edited' | 'commented' | 'task_added' | 'task_updated' | 'task_deleted'
+export type RelationKind = 'blocks'
+
+export interface TicketRelation {
+  from_ticket_id: string
+  to_ticket_id: string
+  kind: RelationKind
+  created_at: string
+  from_title: string
+  to_title: string
+}
+
+export type TicketEventType =
+  | 'created' | 'moved' | 'edited'
+  | 'commented' | 'comment_edited'
+  | 'task_added' | 'task_updated' | 'task_deleted'
+  | 'relation_added' | 'relation_removed'
 
 export interface TicketEvent {
   id: string

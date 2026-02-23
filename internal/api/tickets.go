@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -268,6 +269,79 @@ func UpdateTicket(s store.Store, hub *Hub) http.HandlerFunc {
 		hub.Publish(SSEEvent{Type: "ticket.updated", BoardID: ticket.BoardID})
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(ticket)
+	}
+}
+
+// BulkCreateTickets creates multiple tickets in a single transaction.
+func BulkCreateTickets(s store.Store, hub *Hub) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		boardID := chi.URLParam(r, "id")
+		if boardID == "" {
+			http.Error(w, `{"error": "board id is required"}`, http.StatusBadRequest)
+			return
+		}
+
+		var reqs []TicketRequest
+		if err := json.NewDecoder(r.Body).Decode(&reqs); err != nil {
+			http.Error(w, `{"error": "invalid JSON — expected an array of ticket objects"}`, http.StatusBadRequest)
+			return
+		}
+		if len(reqs) == 0 {
+			http.Error(w, `{"error": "at least one ticket is required"}`, http.StatusBadRequest)
+			return
+		}
+
+		tickets := make([]models.Ticket, 0, len(reqs))
+		for i, req := range reqs {
+			if strings.TrimSpace(req.Title) == "" {
+				http.Error(w, fmt.Sprintf(`{"error": "ticket %d: title is required"}`, i), http.StatusBadRequest)
+				return
+			}
+			var status models.Status
+			if req.Status != nil {
+				status = models.Status(*req.Status)
+				if status != models.StatusTodo && status != models.StatusInProgress && status != models.StatusDone {
+					http.Error(w, fmt.Sprintf(`{"error": "ticket %d: invalid status"}`, i), http.StatusBadRequest)
+					return
+				}
+			} else {
+				status = models.StatusTodo
+			}
+			var priority models.Priority
+			if req.Priority != nil {
+				priority = models.Priority(*req.Priority)
+				if priority != models.PriorityLow && priority != models.PriorityMedium &&
+					priority != models.PriorityHigh && priority != models.PriorityCritical {
+					http.Error(w, fmt.Sprintf(`{"error": "ticket %d: invalid priority"}`, i), http.StatusBadRequest)
+					return
+				}
+			} else {
+				priority = models.PriorityMedium
+			}
+			assignee := ""
+			if req.Assignee != nil {
+				assignee = *req.Assignee
+			}
+			tickets = append(tickets, models.Ticket{
+				EpicID:      req.EpicID,
+				Title:       req.Title,
+				Description: req.Description,
+				Status:      status,
+				Priority:    priority,
+				Assignee:    assignee,
+			})
+		}
+
+		created, err := s.BulkCreateTickets(r.Context(), boardID, tickets)
+		if err != nil {
+			http.Error(w, `{"error": "internal server error"}`, http.StatusInternalServerError)
+			return
+		}
+
+		hub.Publish(SSEEvent{Type: "ticket.created", BoardID: boardID})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(created)
 	}
 }
 

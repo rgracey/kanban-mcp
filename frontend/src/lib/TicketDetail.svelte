@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Ticket, Epic, Comment, Task, TicketEvent } from "./types.js";
+  import type { Ticket, Epic, Comment, Task, TicketEvent, TicketRelation } from "./types.js";
   import {
     getTicket,
     updateTicket,
@@ -14,6 +14,9 @@
     updateTask,
     deleteTask,
     listTicketEvents,
+    listRelations,
+    addRelation,
+    deleteRelation,
   } from "./api.js";
   import { toast } from "svelte-sonner";
   import { marked } from "marked";
@@ -35,6 +38,7 @@
   let comments = $state<Comment[]>([]);
   let tasks = $state<Task[]>([]);
   let events = $state<TicketEvent[]>([]);
+  let relations = $state<TicketRelation[]>([]);
   let loading = $state(true);
   let loadError = $state("");
 
@@ -59,6 +63,10 @@
   let fieldError = $state("");
   let deletingTicket = $state(false);
 
+  // --- relation state ---
+  let newRelationId = $state("");
+  let addingRelation = $state(false);
+
   // --- comment state ---
   let newCommentBody = $state("");
   let addingComment = $state(false);
@@ -70,18 +78,20 @@
     loading = true;
     loadError = "";
     try {
-      const [t, e, c, tk, ev] = await Promise.all([
+      const [t, e, c, tk, ev, rels] = await Promise.all([
         getTicket(ticketId),
         listEpics(boardId),
         listComments(ticketId),
         listTasks(ticketId),
         listTicketEvents(ticketId),
+        listRelations(ticketId),
       ]);
       ticket = t;
       epics = e;
       comments = c;
       tasks = tk;
       events = ev;
+      relations = rels;
       pendingTasks = [];
       // seed drafts — untrack so assignment doesn't loop
       draftTitle = untrack(() => t.title);
@@ -208,6 +218,44 @@
     if (e.key === "Enter") addPendingTask();
   }
 
+  // --- relations ---
+  async function submitRelation() {
+    const toId = newRelationId.trim();
+    if (!toId || !ticket) return;
+    if (toId === ticket.id) {
+      toast.error("A ticket cannot block itself");
+      return;
+    }
+    addingRelation = true;
+    try {
+      const rel = await addRelation(ticket.id, toId);
+      relations = [...relations, rel];
+      newRelationId = "";
+      toast.success("Relation added");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to add relation");
+    } finally {
+      addingRelation = false;
+    }
+  }
+
+  async function removeRelation(rel: TicketRelation) {
+    if (!ticket) return;
+    try {
+      await deleteRelation(rel.from_ticket_id, rel.to_ticket_id);
+      relations = relations.filter(
+        (r) => !(r.from_ticket_id === rel.from_ticket_id && r.to_ticket_id === rel.to_ticket_id),
+      );
+      toast.success("Relation removed");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to remove relation");
+    }
+  }
+
+  function onRelationKeydown(e: KeyboardEvent) {
+    if (e.key === "Enter") submitRelation();
+  }
+
   // --- comments ---
   async function submitComment() {
     if (!newCommentBody.trim() || !ticket) return;
@@ -281,14 +329,16 @@
   }
 
   const eventIcons: Record<string, string> = {
-    created:        '✦',
-    moved:          '→',
-    edited:         '✎',
-    commented:      '💬',
-    comment_edited: '💬',
-    task_added:     '☐',
-    task_updated:   '☑',
-    task_deleted:   '✕',
+    created:          '✦',
+    moved:            '→',
+    edited:           '✎',
+    commented:        '💬',
+    comment_edited:   '💬',
+    task_added:       '☐',
+    task_updated:     '☑',
+    task_deleted:     '✕',
+    relation_added:   '⛓',
+    relation_removed: '✂',
   }
 
   function eventDescription(ev: TicketEvent): string {
@@ -345,6 +395,20 @@
       }
       case 'task_deleted':
         return p.task_title ? `Task deleted: "${p.task_title}"` : 'Task deleted'
+      case 'relation_added': {
+        const title = p.related_title as string | undefined
+        const dir = p.direction as string | undefined
+        if (dir === 'outgoing')
+          return title ? `Now blocking "${title}"` : 'Blocking relation added'
+        return title ? `Blocked by "${title}"` : 'Blocked-by relation added'
+      }
+      case 'relation_removed': {
+        const title = p.related_title as string | undefined
+        const dir = p.direction as string | undefined
+        if (dir === 'outgoing')
+          return title ? `No longer blocking "${title}"` : 'Blocking relation removed'
+        return title ? `No longer blocked by "${title}"` : 'Blocked-by relation removed'
+      }
       default:
         return ev.type
     }
@@ -607,6 +671,62 @@
             class="px-3 py-1.5 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 transition-colors"
             onclick={addPendingTask}
             disabled={!newTaskTitle.trim()}>Add</button
+          >
+        </div>
+      </div>
+
+      <!-- Relations -->
+      <div>
+        <h3 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">
+          Relations
+          {#if relations.length > 0}
+            <span class="ml-1 font-normal normal-case">({relations.length})</span>
+          {/if}
+        </h3>
+
+        {#if relations.length > 0}
+          <ul class="space-y-1.5 mb-3">
+            {#each relations as rel}
+              {@const isBlocking = rel.from_ticket_id === ticket?.id}
+              <li class="flex items-center gap-2 group text-sm">
+                <span class="shrink-0 text-xs px-1.5 py-0.5 rounded font-medium
+                  {isBlocking
+                    ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
+                    : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'}">
+                  {isBlocking ? 'blocks' : 'blocked by'}
+                </span>
+                <span class="flex-1 text-gray-700 dark:text-gray-300 truncate">
+                  {isBlocking ? rel.to_title : rel.from_title}
+                </span>
+                <span class="text-xs text-gray-400 dark:text-gray-600 font-mono truncate max-w-[6rem]">
+                  {isBlocking ? rel.to_ticket_id.slice(0, 8) : rel.from_ticket_id.slice(0, 8)}
+                </span>
+                {#if isBlocking}
+                  <button
+                    class="text-gray-300 dark:text-gray-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity text-xs shrink-0"
+                    onclick={() => removeRelation(rel)}
+                    aria-label="Remove relation">&times;</button
+                  >
+                {/if}
+              </li>
+            {/each}
+          </ul>
+        {:else}
+          <p class="text-sm text-gray-400 italic mb-3">No relations.</p>
+        {/if}
+
+        <!-- Add relation -->
+        <div class="flex gap-2">
+          <input
+            class="flex-1 border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
+            placeholder="Paste ticket ID to block…"
+            bind:value={newRelationId}
+            onkeydown={onRelationKeydown}
+          />
+          <button
+            class="px-3 py-1.5 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 transition-colors"
+            onclick={submitRelation}
+            disabled={addingRelation || !newRelationId.trim()}>Add</button
           >
         </div>
       </div>

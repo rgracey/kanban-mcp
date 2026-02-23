@@ -1,4 +1,4 @@
-import type { Board, Epic, Ticket, Comment, Task, TicketEvent, BoardSummary, TicketFilter, Status, Priority } from './types.js'
+import type { Board, Epic, Ticket, Comment, Task, TicketEvent, TicketRelation, BoardSummary, TicketFilter, Status, Priority } from './types.js'
 
 const BASE = '/api/v1'
 
@@ -61,6 +61,16 @@ export const deleteTask = (id: string) => request<void>(`/tasks/${id}`, { method
 
 // Ticket Events (audit history)
 export const listTicketEvents = (ticketId: string) => request<TicketEvent[]>(`/tickets/${ticketId}/events`)
+
+// Relations
+export const listRelations = (ticketId: string) => request<TicketRelation[]>(`/tickets/${ticketId}/relations`)
+export const addRelation = (ticketId: string, toTicketId: string) =>
+  request<TicketRelation>(`/tickets/${ticketId}/relations`, {
+    method: 'POST',
+    body: JSON.stringify({ to_ticket_id: toTicketId, kind: 'blocks' }),
+  })
+export const deleteRelation = (ticketId: string, toTicketId: string) =>
+  request<void>(`/tickets/${ticketId}/relations/${toTicketId}`, { method: 'DELETE' })
 
 // Comments
 export const listComments = (ticketId: string) => request<Comment[]>(`/tickets/${ticketId}/comments`)
