@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Ticket, Epic } from '../types.js';
+	import type { Ticket, Epic, Status } from '../types.js';
 	import { createTicket, listEpics } from '../api.js';
 	import { toast } from 'svelte-sonner';
 
@@ -15,6 +15,7 @@
 	let title = $state('');
 	let description = $state('');
 	let priority = $state<'low' | 'medium' | 'high' | 'critical'>('medium');
+	let status = $state<Status>('todo');
 	let epicId = $state('');
 	let assignee = $state('');
 	let submitting = $state(false);
@@ -42,9 +43,9 @@
 				title: title.trim(),
 				description,
 				priority,
+				status,
 				epic_id: epicId || null,
-				assignee,
-				status: 'todo'
+				assignee
 			});
 			oncreated(ticket);
 		} catch (e) {
@@ -140,20 +141,36 @@
 
 				<div>
 					<label
-						for="ct-epic"
-						class="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">Epic</label
+						for="ct-status"
+						class="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">Status</label
 					>
 					<select
-						id="ct-epic"
+						id="ct-status"
 						class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 transition-shadow focus:border-transparent focus:ring-2 focus:ring-indigo-500 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-						bind:value={epicId}
+						bind:value={status}
 					>
-						<option value="">None</option>
-						{#each epics as epic (epic.id)}
-							<option value={epic.id}>{epic.title}</option>
-						{/each}
+						<option value="todo">To Do</option>
+						<option value="in_progress">In Progress</option>
+						<option value="done">Done</option>
 					</select>
 				</div>
+			</div>
+
+			<div>
+				<label
+					for="ct-epic"
+					class="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">Epic</label
+				>
+				<select
+					id="ct-epic"
+					class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 transition-shadow focus:border-transparent focus:ring-2 focus:ring-indigo-500 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+					bind:value={epicId}
+				>
+					<option value="">None</option>
+					{#each epics as epic (epic.id)}
+						<option value={epic.id}>{epic.title}</option>
+					{/each}
+				</select>
 			</div>
 
 			<div>
