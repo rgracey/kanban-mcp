@@ -316,6 +316,33 @@ func TestTaskCRUD(t *testing.T) {
 	assert.Empty(t, tasks2)
 }
 
+// TestBulkCreate verifies bulk_create returns the created tickets cleanly.
+func TestBulkCreate(t *testing.T) {
+	srv := setupServer(t)
+
+	boardRes := call(t, srv, "board", map[string]any{"action": "create", "name": "B"})
+	var board models.Board
+	decodeResult(t, boardRes, &board)
+
+	bulkRes := call(t, srv, "ticket", map[string]any{
+		"action":       "bulk_create",
+		"board_id":     board.ID,
+		"tickets_json": `[{"title":"Alpha","priority":"high"},{"title":"Beta","priority":"low"}]`,
+	})
+	require.False(t, bulkRes.IsError, "bulk_create should not error")
+	created := decodeListResult[models.Ticket](t, bulkRes)
+	require.Len(t, created, 2)
+	assert.Equal(t, "Alpha", created[0].Title)
+	assert.Equal(t, models.PriorityHigh, created[0].Priority)
+	assert.Equal(t, "Beta", created[1].Title)
+	assert.Equal(t, models.PriorityLow, created[1].Priority)
+
+	// Verify tickets actually exist (no phantom duplicates)
+	listRes := call(t, srv, "ticket", map[string]any{"action": "list", "board_id": board.ID})
+	all := decodeListResult[models.Ticket](t, listRes)
+	assert.Len(t, all, 2, "should be exactly 2 tickets, not duplicates")
+}
+
 // TestTicketHistory exercises the ticket history action.
 func TestTicketHistory(t *testing.T) {
 	srv := setupServer(t)
