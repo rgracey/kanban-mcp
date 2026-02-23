@@ -178,50 +178,81 @@ func UpdateTicket(s store.Store, hub *Hub) http.HandlerFunc {
 			return
 		}
 
-		var req TicketRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		// Decode into raw map so we can distinguish "field absent" from "field: null"
+		var raw map[string]json.RawMessage
+		if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
 			http.Error(w, `{"error": "invalid JSON"}`, http.StatusBadRequest)
 			return
 		}
 
-		// Validate status if provided
-		if req.Status != nil {
-			status := models.Status(*req.Status)
+		// Build update fields map
+		fields := make(map[string]interface{})
+
+		if v, ok := raw["title"]; ok {
+			var s string
+			if err := json.Unmarshal(v, &s); err != nil {
+				http.Error(w, `{"error": "invalid title"}`, http.StatusBadRequest)
+				return
+			}
+			if s != "" {
+				fields["title"] = s
+			}
+		}
+		if v, ok := raw["description"]; ok {
+			var s string
+			if err := json.Unmarshal(v, &s); err != nil {
+				http.Error(w, `{"error": "invalid description"}`, http.StatusBadRequest)
+				return
+			}
+			fields["description"] = s
+		}
+		if v, ok := raw["status"]; ok {
+			var s string
+			if err := json.Unmarshal(v, &s); err != nil {
+				http.Error(w, `{"error": "invalid status"}`, http.StatusBadRequest)
+				return
+			}
+			status := models.Status(s)
 			if status != models.StatusTodo && status != models.StatusInProgress && status != models.StatusDone {
 				http.Error(w, `{"error": "status must be one of: todo, in_progress, done"}`, http.StatusBadRequest)
 				return
 			}
+			fields["status"] = s
 		}
-
-		// Validate priority if provided
-		if req.Priority != nil {
-			priority := models.Priority(*req.Priority)
+		if v, ok := raw["priority"]; ok {
+			var s string
+			if err := json.Unmarshal(v, &s); err != nil {
+				http.Error(w, `{"error": "invalid priority"}`, http.StatusBadRequest)
+				return
+			}
+			priority := models.Priority(s)
 			if priority != models.PriorityLow && priority != models.PriorityMedium &&
 				priority != models.PriorityHigh && priority != models.PriorityCritical {
 				http.Error(w, `{"error": "priority must be one of: low, medium, high, critical"}`, http.StatusBadRequest)
 				return
 			}
+			fields["priority"] = s
 		}
-
-		// Build update fields map
-		fields := make(map[string]interface{})
-		if req.Title != "" {
-			fields["title"] = req.Title
+		if v, ok := raw["epic_id"]; ok {
+			// null clears the epic; a string value sets it
+			if string(v) == "null" {
+				fields["epic_id"] = nil
+			} else {
+				var s string
+				if err := json.Unmarshal(v, &s); err != nil {
+					http.Error(w, `{"error": "invalid epic_id"}`, http.StatusBadRequest)
+					return
+				}
+				fields["epic_id"] = s
+			}
 		}
-		if req.Description != "" {
-			fields["description"] = req.Description
-		}
-		if req.Status != nil {
-			fields["status"] = *req.Status
-		}
-		if req.Priority != nil {
-			fields["priority"] = *req.Priority
-		}
-		if req.EpicID != nil {
-			fields["epic_id"] = *req.EpicID
-		}
-		if req.Assignee != nil {
-			fields["assignee"] = *req.Assignee
+		if v, ok := raw["assignee"]; ok {
+			var s string
+			if err := json.Unmarshal(v, &s); err != nil {
+				http.Error(w, `{"error": "invalid assignee"}`, http.StatusBadRequest)
+				return
+			}
+			fields["assignee"] = s
 		}
 
 		ticket, err := s.UpdateTicket(r.Context(), id, fields)

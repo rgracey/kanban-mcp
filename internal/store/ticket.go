@@ -222,9 +222,8 @@ func (s *SQLiteStore) UpdateTicket(ctx context.Context, id string, fields map[st
 	} else {
 		payload := map[string]any{}
 		for k, v := range fields {
-			if v != nil {
-				payload[k] = v
-			}
+			// include all changed fields, even nil (e.g. clearing epic_id)
+			payload[k] = v
 		}
 		if len(payload) > 0 {
 			_, _ = s.CreateTicketEvent(ctx, id, models.EventEdited, "", payload)
