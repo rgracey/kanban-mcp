@@ -1,64 +1,133 @@
 /* Inter font via bunny.net (privacy-friendly, no Google) */
 @import url('https://fonts.bunny.net/css?family=inter:400,500,600,700&display=swap');
-@import "tailwindcss";
+@import 'tailwindcss';
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  /* Design system tokens */
-  --color-brand: #4f46e5;
-  --color-brand-hover: #4338ca;
-  --radius-card: 10px;
+	font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
+	line-height: 1.5;
+	font-weight: 400;
+	font-synthesis: none;
+	text-rendering: optimizeLegibility;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+	/* Design system tokens */
+	--color-brand: #4f46e5;
+	--color-brand-hover: #4338ca;
+	--radius-card: 10px;
 }
 
 body {
-  margin: 0;
-  min-width: 320px;
-  min-height: 100vh;
+	margin: 0;
+	min-width: 320px;
+	min-height: 100vh;
 }
 
 #app {
-  min-height: 100vh;
+	min-height: 100vh;
 }
 
 /* ── Scrollbars ─────────────────────────────────────────── */
 * {
-  scrollbar-width: thin;
-  scrollbar-color: #d1d5db transparent;
+	scrollbar-width: thin;
+	scrollbar-color: #d1d5db transparent;
 }
 .dark * {
-  scrollbar-color: #374151 transparent;
+	scrollbar-color: #374151 transparent;
 }
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
-.dark ::-webkit-scrollbar-thumb { background: #374151; }
+::-webkit-scrollbar {
+	width: 6px;
+	height: 6px;
+}
+::-webkit-scrollbar-track {
+	background: transparent;
+}
+::-webkit-scrollbar-thumb {
+	background: #d1d5db;
+	border-radius: 3px;
+}
+.dark ::-webkit-scrollbar-thumb {
+	background: #374151;
+}
 
 /* ── Markdown rendered output ───────────────────────────── */
-.md-body { font-size: 0.875rem; line-height: 1.6; }
-.md-body p { margin: 0 0 0.5rem; }
-.md-body p:last-child { margin-bottom: 0; }
-.md-body h1, .md-body h2, .md-body h3, .md-body h4 { font-weight: 600; margin: 0.75rem 0 0.25rem; }
-.md-body h1 { font-size: 1.125rem; }
-.md-body h2 { font-size: 1rem; }
-.md-body h3 { font-size: 0.9375rem; }
-.md-body ul, .md-body ol { padding-left: 1.25rem; margin: 0 0 0.5rem; }
-.md-body li { margin-bottom: 0.125rem; }
-.md-body code { background: #f3f4f6; border-radius: 3px; padding: 0.1em 0.3em; font-size: 0.8125rem; }
-.md-body pre { background: #f3f4f6; border-radius: 6px; padding: 0.75rem; overflow-x: auto; margin: 0 0 0.5rem; }
-.md-body pre code { background: none; padding: 0; }
-.md-body blockquote { border-left: 3px solid #e5e7eb; padding-left: 0.75rem; color: #6b7280; margin: 0 0 0.5rem; }
-.md-body a { color: #4f46e5; text-decoration: underline; }
-.md-body strong { font-weight: 600; }
-.md-body em { font-style: italic; }
+.md-body {
+	font-size: 0.875rem;
+	line-height: 1.6;
+}
+.md-body p {
+	margin: 0 0 0.5rem;
+}
+.md-body p:last-child {
+	margin-bottom: 0;
+}
+.md-body h1,
+.md-body h2,
+.md-body h3,
+.md-body h4 {
+	font-weight: 600;
+	margin: 0.75rem 0 0.25rem;
+}
+.md-body h1 {
+	font-size: 1.125rem;
+}
+.md-body h2 {
+	font-size: 1rem;
+}
+.md-body h3 {
+	font-size: 0.9375rem;
+}
+.md-body ul,
+.md-body ol {
+	padding-left: 1.25rem;
+	margin: 0 0 0.5rem;
+}
+.md-body li {
+	margin-bottom: 0.125rem;
+}
+.md-body code {
+	background: #f3f4f6;
+	border-radius: 3px;
+	padding: 0.1em 0.3em;
+	font-size: 0.8125rem;
+}
+.md-body pre {
+	background: #f3f4f6;
+	border-radius: 6px;
+	padding: 0.75rem;
+	overflow-x: auto;
+	margin: 0 0 0.5rem;
+}
+.md-body pre code {
+	background: none;
+	padding: 0;
+}
+.md-body blockquote {
+	border-left: 3px solid #e5e7eb;
+	padding-left: 0.75rem;
+	color: #6b7280;
+	margin: 0 0 0.5rem;
+}
+.md-body a {
+	color: #4f46e5;
+	text-decoration: underline;
+}
+.md-body strong {
+	font-weight: 600;
+}
+.md-body em {
+	font-style: italic;
+}
 
 /* dark mode code blocks */
-.dark .md-body code { background: #1e293b; color: #e2e8f0; }
-.dark .md-body pre { background: #1e293b; }
-.dark .md-body blockquote { border-left-color: #374151; color: #9ca3af; }
+.dark .md-body code {
+	background: #1e293b;
+	color: #e2e8f0;
+}
+.dark .md-body pre {
+	background: #1e293b;
+}
+.dark .md-body blockquote {
+	border-left-color: #374151;
+	color: #9ca3af;
+}
