@@ -230,13 +230,13 @@ func registerTools(srv *server.MCPServer, s store.Store) {
 	)
 
 	// -------------------------------------------------------------------------
-	// ticket — list | get | create | update | delete | move
+	// ticket — list | get | create | update | delete | move | history
 	// -------------------------------------------------------------------------
 	srv.AddTool(
 		mcpgo.NewTool("ticket",
-			mcpgo.WithDescription("Manage tickets. action: list, get, create, bulk_create, update, delete, move"),
-			mcpgo.WithString("action", mcpgo.Required(), mcpgo.Description("list|get|create|bulk_create|update|delete|move")),
-			mcpgo.WithString("id", mcpgo.Description("Ticket ID (get/update/delete/move)")),
+			mcpgo.WithDescription("Manage tickets. action: list, get, create, bulk_create, update, delete, move, history"),
+			mcpgo.WithString("action", mcpgo.Required(), mcpgo.Description("list|get|create|bulk_create|update|delete|move|history")),
+			mcpgo.WithString("id", mcpgo.Description("Ticket ID (get/update/delete/move/history)")),
 			mcpgo.WithString("board_id", mcpgo.Description("Board ID (list/create/bulk_create)")),
 			mcpgo.WithString("title", mcpgo.Description("Title (create/update)")),
 			mcpgo.WithString("description", mcpgo.Description("Description (create/update)")),
@@ -250,7 +250,7 @@ func registerTools(srv *server.MCPServer, s store.Store) {
 			mcpgo.WithString("q", mcpgo.Description("Keyword search (list)")),
 			mcpgo.WithString("sort_by", mcpgo.Description("priority|created_at (list)")),
 			mcpgo.WithString("sort_order", mcpgo.Description("asc|desc (list)")),
-			mcpgo.WithBoolean("include_comments", mcpgo.Description("Embed agent notes (get)")),
+			mcpgo.WithBoolean("include_notes", mcpgo.Description("Embed agent notes (get)")),
 			mcpgo.WithBoolean("include_history", mcpgo.Description("Embed audit history (get)")),
 			mcpgo.WithString("tickets_json", mcpgo.Description(`JSON array of ticket objects for bulk_create, e.g. [{"title":"T1","priority":"high"},{"title":"T2"}]`)),
 			mcpgo.WithString("references_json", mcpgo.Description(`JSON array of code references for create/update, e.g. [{"kind":"file","target":"src/api/handler.go:42","label":"handler"},{"kind":"pr","target":"https://github.com/..."}]`)),
@@ -315,7 +315,10 @@ func registerTools(srv *server.MCPServer, s store.Store) {
 					History []models.TicketEvent `json:"history,omitempty"`
 				}
 				out := envelope{Ticket: ticket}
-				if v, ok := args["include_comments"].(bool); ok && v {
+				// accept both include_notes (new) and include_comments (legacy)
+				includeNotes, _ := args["include_notes"].(bool)
+				includeLegacy, _ := args["include_comments"].(bool)
+				if includeNotes || includeLegacy {
 					notes, err := s.ListNotes(ctx, id)
 					if err != nil {
 						return mcpgo.NewToolResultError(err.Error()), nil
@@ -461,6 +464,17 @@ func registerTools(srv *server.MCPServer, s store.Store) {
 					return mcpgo.NewToolResultError(err.Error()), nil
 				}
 				return jsonResult(created)
+
+			case "history":
+				id := getString("id")
+				if id == "" {
+					return mcpgo.NewToolResultError("id required"), nil
+				}
+				events, err := s.ListTicketEvents(ctx, id)
+				if err != nil {
+					return mcpgo.NewToolResultError(err.Error()), nil
+				}
+				return jsonResult(events)
 
 			default:
 				return mcpgo.NewToolResultError(fmt.Sprintf("unknown action %q", action)), nil
@@ -621,27 +635,6 @@ func registerTools(srv *server.MCPServer, s store.Store) {
 			default:
 				return mcpgo.NewToolResultError(fmt.Sprintf("unknown action %q", action)), nil
 			}
-		},
-	)
-
-	// -------------------------------------------------------------------------
-	// ticket_history — list audit events for a ticket
-	// -------------------------------------------------------------------------
-	srv.AddTool(
-		mcpgo.NewTool("ticket_history",
-			mcpgo.WithDescription("List the audit event history for a ticket"),
-			mcpgo.WithString("ticket_id", mcpgo.Required(), mcpgo.Description("Ticket ID")),
-		),
-		func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
-			ticketID, err := req.RequireString("ticket_id")
-			if err != nil {
-				return mcpgo.NewToolResultError(err.Error()), nil
-			}
-			events, err := s.ListTicketEvents(ctx, ticketID)
-			if err != nil {
-				return mcpgo.NewToolResultError(err.Error()), nil
-			}
-			return jsonResult(events)
 		},
 	)
 

@@ -57,7 +57,6 @@ func TestAllToolsRegistered(t *testing.T) {
 		"ticket",
 		"task",
 		"note",
-		"ticket_history",
 		"relation",
 	}
 	tools := srv.ListTools()
@@ -194,12 +193,12 @@ func TestTicketWorkflow(t *testing.T) {
 	decodeResult(t, updRes, &updTicket)
 	assert.Equal(t, models.PriorityHigh, updTicket.Priority)
 
-	// get with include_comments and include_history
+	// get with include_notes and include_history
 	getRes := call(t, srv, "ticket", map[string]any{
-		"action":           "get",
-		"id":               ticket.ID,
-		"include_comments": true,
-		"include_history":  true,
+		"action":          "get",
+		"id":              ticket.ID,
+		"include_notes":   true,
+		"include_history": true,
 	})
 	require.False(t, getRes.IsError)
 
@@ -313,7 +312,7 @@ func TestTaskCRUD(t *testing.T) {
 	assert.Empty(t, tasks2)
 }
 
-// TestTicketHistory exercises the ticket_history tool.
+// TestTicketHistory exercises the ticket history action.
 func TestTicketHistory(t *testing.T) {
 	srv := setupServer(t)
 
@@ -329,7 +328,7 @@ func TestTicketHistory(t *testing.T) {
 	var ticket models.Ticket
 	decodeResult(t, ticketRes, &ticket)
 
-	histRes := call(t, srv, "ticket_history", map[string]any{"ticket_id": ticket.ID})
+	histRes := call(t, srv, "ticket", map[string]any{"action": "history", "id": ticket.ID})
 	var events []models.TicketEvent
 	decodeResult(t, histRes, &events)
 	// At minimum a "created" event should exist
