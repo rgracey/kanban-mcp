@@ -42,10 +42,6 @@ Most project management tools are either too heavy to self-host or have no machi
 
 ## Quick start
 
-### Prerequisites
-
-- [Go](https://go.dev/dl/) 1.22 or later
-
 ### Download and run
 
 Download a pre-built binary from [GitHub Releases](https://github.com/rgracey/kanban-mcp/releases):
@@ -59,6 +55,10 @@ xattr -d com.apple.quarantine ./kanban-mcp
 ```
 
 Or install with Go:
+
+**Prerequisites**
+
+- [Go](https://go.dev/dl/) 1.22 or later
 
 ```sh
 go install github.com/rgracey/kanban-mcp@latest
