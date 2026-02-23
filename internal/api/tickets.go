@@ -19,7 +19,6 @@ type TicketRequest struct {
 	Priority    *string                  `json:"priority"`
 	EpicID      *string                  `json:"epic_id"`
 	Assignee    *string                  `json:"assignee"`
-	References  []models.TicketReference `json:"references"`
 	Resolution  *models.TicketResolution `json:"resolution"`
 }
 
@@ -133,7 +132,6 @@ func CreateTicket(s store.Store, hub *Hub) http.HandlerFunc {
 			Status:      status,
 			Priority:    priority,
 			Assignee:    assignee,
-			References:  req.References,
 			Resolution:  req.Resolution,
 		}
 
@@ -258,10 +256,6 @@ func UpdateTicket(s store.Store, hub *Hub) http.HandlerFunc {
 				return
 			}
 			fields["assignee"] = s
-		}
-		if v, ok := raw["references"]; ok {
-			// Pass the raw JSON string; the store will unmarshal/validate it
-			fields["references"] = string(v)
 		}
 		if v, ok := raw["resolution"]; ok {
 			if string(v) == "null" {

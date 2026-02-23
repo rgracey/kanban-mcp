@@ -6,7 +6,6 @@
 		Task,
 		TicketEvent,
 		TicketRelation,
-		TicketReference,
 		TicketResolution
 	} from './types.js';
 	import {
@@ -64,14 +63,8 @@
 	let draftStatus = $state('');
 	let draftPriority = $state('');
 	let draftEpicId = $state('');
-	let draftReferences = $state<TicketReference[]>([]);
 	let draftResolution = $state<TicketResolution | null>(null);
 	let editingDescription = $state(false);
-
-	// --- reference editing ---
-	let newRefKind = $state<TicketReference['kind']>('file');
-	let newRefTarget = $state('');
-	let newRefLabel = $state('');
 
 	// --- pending new tasks (saved on Save button) ---
 	let pendingTasks = $state<string[]>([]); // titles not yet persisted
@@ -134,9 +127,8 @@
 			draftAssignee = untrack(() => t.assignee ?? '');
 			draftStatus = untrack(() => t.status);
 			draftPriority = untrack(() => t.priority);
-			draftEpicId = untrack(() => t.epic_id ?? '');
-			draftReferences = untrack(() => [...(t.references ?? [])]);
-			draftResolution = untrack(() => (t.resolution ? { ...t.resolution } : null));
+		draftEpicId = untrack(() => t.epic_id ?? '');
+		draftResolution = untrack(() => (t.resolution ? { ...t.resolution } : null));
 		} catch (e) {
 			loadError = e instanceof Error ? e.message : 'Failed to load ticket';
 			toast.error(loadError);
@@ -161,9 +153,8 @@
 				draftAssignee !== (ticket.assignee ?? '') ||
 				draftStatus !== ticket.status ||
 				draftPriority !== ticket.priority ||
-				draftEpicId !== (ticket.epic_id ?? '') ||
-				JSON.stringify(draftReferences) !== JSON.stringify(ticket.references ?? []) ||
-				JSON.stringify(draftResolution) !== JSON.stringify(ticket.resolution ?? null) ||
+			draftEpicId !== (ticket.epic_id ?? '') ||
+			JSON.stringify(draftResolution) !== JSON.stringify(ticket.resolution ?? null) ||
 				pendingTasks.length > 0)
 	);
 
@@ -179,10 +170,8 @@
 			if (draftAssignee !== (ticket.assignee ?? '')) patch.assignee = draftAssignee;
 			if (draftStatus !== ticket.status) patch.status = draftStatus as Ticket['status'];
 			if (draftPriority !== ticket.priority) patch.priority = draftPriority as Ticket['priority'];
-			if ((draftEpicId || null) !== ticket.epic_id) patch.epic_id = draftEpicId || null;
-			if (JSON.stringify(draftReferences) !== JSON.stringify(ticket.references ?? []))
-				patch.references = draftReferences;
-			if (JSON.stringify(draftResolution) !== JSON.stringify(ticket.resolution ?? null))
+		if ((draftEpicId || null) !== ticket.epic_id) patch.epic_id = draftEpicId || null;
+		if (JSON.stringify(draftResolution) !== JSON.stringify(ticket.resolution ?? null))
 				patch.resolution = draftResolution;
 
 			const updated = Object.keys(patch).length > 0 ? await updateTicket(ticket.id, patch) : ticket;
@@ -192,9 +181,8 @@
 			draftAssignee = updated.assignee ?? '';
 			draftStatus = updated.status;
 			draftPriority = updated.priority;
-			draftEpicId = updated.epic_id ?? '';
-			draftReferences = [...(updated.references ?? [])];
-			draftResolution = updated.resolution ? { ...updated.resolution } : null;
+		draftEpicId = updated.epic_id ?? '';
+		draftResolution = updated.resolution ? { ...updated.resolution } : null;
 			editingDescription = false;
 			onupdate?.(updated);
 
@@ -545,125 +533,6 @@
 						placeholder="Unassigned"
 						bind:value={draftAssignee}
 					/>
-				</div>
-
-				<!-- Code References -->
-				<div class={sectionCls}>
-					<h3 class={labelCls}>Code References</h3>
-
-					{#if draftReferences.length > 0}
-						<ul class="mb-2 space-y-1.5">
-							{#each draftReferences as ref, i}
-								<li class="group flex items-center gap-2 text-sm">
-									<span
-										class="shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-semibold
-                    {ref.kind === 'file'
-											? 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
-											: ref.kind === 'pr'
-												? 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300'
-												: ref.kind === 'commit'
-													? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400'
-													: 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-400'}"
-									>
-										{ref.kind}
-									</span>
-									{#if ref.kind === 'file'}
-										<code class="flex-1 truncate font-mono text-xs text-gray-700 dark:text-gray-300"
-											>{ref.target}</code
-										>
-									{:else}
-										<a
-											href={ref.target}
-											target="_blank"
-											rel="noopener noreferrer"
-											class="flex-1 truncate text-xs text-indigo-600 hover:underline dark:text-indigo-400"
-											>{ref.label || ref.target}</a
-										>
-									{/if}
-									{#if ref.label && ref.kind === 'file'}
-										<span class="shrink-0 text-xs text-gray-400">{ref.label}</span>
-									{/if}
-									<button
-										class="shrink-0 text-gray-300 opacity-0 transition-opacity group-hover:opacity-100 hover:text-red-500 dark:text-gray-600"
-										onclick={() => {
-											draftReferences = draftReferences.filter((_, idx) => idx !== i);
-										}}
-										aria-label="Remove reference"
-									>
-										<svg
-											class="h-3.5 w-3.5"
-											fill="none"
-											viewBox="0 0 24 24"
-											stroke="currentColor"
-											stroke-width="2"
-										>
-											<path
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												d="M6 18L18 6M6 6l12 12"
-											/>
-										</svg>
-									</button>
-								</li>
-							{/each}
-						</ul>
-					{:else}
-						<p class="mb-2 text-xs text-gray-400 italic dark:text-gray-500">No references.</p>
-					{/if}
-
-					<!-- Add reference row -->
-					<div class="flex flex-wrap gap-2">
-						<select
-							class="shrink-0 rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-							bind:value={newRefKind}
-						>
-							<option value="file">file</option>
-							<option value="url">url</option>
-							<option value="pr">pr</option>
-							<option value="commit">commit</option>
-						</select>
-						<input
-							class="min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-2 py-1.5 font-mono text-xs text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500"
-							placeholder={newRefKind === 'file' ? 'src/handler.go:42' : 'https://...'}
-							bind:value={newRefTarget}
-							onkeydown={(e) => {
-								if (e.key === 'Enter' && newRefTarget.trim()) {
-									draftReferences = [
-										...draftReferences,
-										{
-											kind: newRefKind,
-											target: newRefTarget.trim(),
-											label: newRefLabel.trim() || undefined
-										}
-									];
-									newRefTarget = '';
-									newRefLabel = '';
-								}
-							}}
-						/>
-						<input
-							class="w-28 rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500"
-							placeholder="label (opt)"
-							bind:value={newRefLabel}
-						/>
-						<button
-							class="rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-200 disabled:opacity-40 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
-							onclick={() => {
-								if (!newRefTarget.trim()) return;
-								draftReferences = [
-									...draftReferences,
-									{
-										kind: newRefKind,
-										target: newRefTarget.trim(),
-										label: newRefLabel.trim() || undefined
-									}
-								];
-								newRefTarget = '';
-								newRefLabel = '';
-							}}
-							disabled={!newRefTarget.trim()}>Add</button
-						>
-					</div>
 				</div>
 
 				<!-- Resolution -->

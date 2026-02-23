@@ -274,7 +274,6 @@ func registerTools(srv *server.MCPServer, s store.Store) {
 			mcpgo.WithBoolean("include_tasks", mcpgo.Description("Embed checklist tasks (get)")),
 			mcpgo.WithBoolean("include_relations", mcpgo.Description("Embed blocking relations (get)")),
 			mcpgo.WithString("tickets_json", mcpgo.Description(`JSON array of ticket objects for bulk_create, e.g. [{"title":"T1","priority":"high"},{"title":"T2"}]`)),
-			mcpgo.WithString("references_json", mcpgo.Description(`JSON array of code references for create/update, e.g. [{"kind":"file","target":"src/api/handler.go:42","label":"handler"},{"kind":"pr","target":"https://github.com/..."}]`)),
 			mcpgo.WithString("resolution_json", mcpgo.Description(`JSON object to record resolution for update, e.g. {"commit_sha":"abc123","pr_url":"https://...","notes":"Fixed by ...","resolved_at":"2026-01-01T00:00:00Z"}. Pass "null" to clear.`)),
 		),
 		func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
@@ -384,13 +383,6 @@ func registerTools(srv *server.MCPServer, s store.Store) {
 				if v := getString("epic_id"); v != "" {
 					t.EpicID = &v
 				}
-				if raw := getString("references_json"); raw != "" {
-					var refs []models.TicketReference
-					if err := json.Unmarshal([]byte(raw), &refs); err != nil {
-						return mcpgo.NewToolResultError("references_json is not valid JSON: " + err.Error()), nil
-					}
-					t.References = refs
-				}
 				if raw := getString("resolution_json"); raw != "" && raw != "null" {
 					var res models.TicketResolution
 					if err := json.Unmarshal([]byte(raw), &res); err != nil {
@@ -414,9 +406,6 @@ func registerTools(srv *server.MCPServer, s store.Store) {
 					if v, ok := args[k]; ok {
 						fields[k] = v
 					}
-				}
-				if raw := getString("references_json"); raw != "" {
-					fields["references"] = raw
 				}
 				if raw := getString("resolution_json"); raw != "" {
 					if raw == "null" {

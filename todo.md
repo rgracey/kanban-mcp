@@ -1,0 +1,10 @@
+- Refine Epic stuff. Need to be able to:
+  - edit/delete epics
+  - Possibly have a better display instead of just a row of pills?
+- Switch to side navigation? Maybe not?
+- Update documentation to reflect current state
+  - Comments were replaced with agent notes
+- Update MCP tool to reflect current state (notes not tools)
+- (big one) refactor tools to ensure they don't cause context bloat (favour less tools with richer interactions)
+- Add prettier and format frontend codebase
+- Add docker container for easy deployment?

@@ -18,14 +18,6 @@ export interface Epic {
 	updated_at: string;
 }
 
-export type TicketReferenceKind = 'file' | 'url' | 'pr' | 'commit';
-
-export interface TicketReference {
-	kind: TicketReferenceKind;
-	target: string;
-	label?: string;
-}
-
 export interface TicketResolution {
 	commit_sha?: string;
 	pr_url?: string;
@@ -42,7 +34,6 @@ export interface Ticket {
 	status: Status;
 	priority: Priority;
 	assignee: string;
-	references: TicketReference[];
 	resolution?: TicketResolution | null;
 	created_at: string;
 	updated_at: string;

@@ -73,7 +73,6 @@ export const updateTicket = (
 			| 'priority'
 			| 'epic_id'
 			| 'assignee'
-			| 'references'
 			| 'resolution'
 		>
 	>
