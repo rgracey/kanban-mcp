@@ -7,6 +7,7 @@
 	import KanbanColumn from './KanbanColumn.svelte';
 	import CreateTicket from './modals/CreateTicket.svelte';
 	import CreateEpic from './modals/CreateEpic.svelte';
+	import EditEpic from './modals/EditEpic.svelte';
 
 	interface Props {
 		boardId: string;
@@ -21,6 +22,7 @@
 	let error = $state('');
 	let showCreateTicket = $state(false);
 	let showCreateEpic = $state(false);
+	let editingEpic = $state<Epic | null>(null);
 
 	const columns: { status: Status; label: string }[] = [
 		{ status: 'todo', label: 'To Do' },
@@ -129,6 +131,17 @@
 		showCreateEpic = false;
 		toast.success(`Epic "${epic.title}" created`);
 	}
+
+	function handleEpicUpdate(updated: Epic) {
+		epics = epics.map((e) => (e.id === updated.id ? updated : e));
+		editingEpic = null;
+	}
+
+	function handleEpicDelete(epicId: string) {
+		epics = epics.filter((e) => e.id !== epicId);
+		if (selectedEpicId === epicId) selectedEpicId = null;
+		editingEpic = null;
+	}
 </script>
 
 <div class="flex h-full flex-col gap-4">
@@ -137,7 +150,7 @@
 		<!-- Left: epic filter -->
 		<div class="flex min-w-0 items-center gap-2">
 			<span class="shrink-0 text-xs font-medium text-gray-400 dark:text-gray-500">Epic</span>
-			<EpicFilter {epics} {selectedEpicId} onchange={(id) => (selectedEpicId = id)} />
+			<EpicFilter {epics} {selectedEpicId} onchange={(id) => (selectedEpicId = id)} onedit={(epic) => (editingEpic = epic)} />
 		</div>
 		<!-- Right: action buttons -->
 		<div class="flex shrink-0 items-center gap-2">
@@ -207,4 +220,13 @@
 
 {#if showCreateEpic}
 	<CreateEpic {boardId} onclose={() => (showCreateEpic = false)} oncreated={handleEpicCreate} />
+{/if}
+
+{#if editingEpic}
+	<EditEpic
+		epic={editingEpic}
+		onclose={() => (editingEpic = null)}
+		onupdated={handleEpicUpdate}
+		ondeleted={handleEpicDelete}
+	/>
 {/if}
