@@ -1,6 +1,6 @@
 # kanban-mcp
 
-![Kanban board screenshot](docs/images/kanban_logo.png)
+<img src="docs/images/kanban_logo.png" width="350">
 
 A self-contained kanban board server that works for both humans and AI agents.
 
