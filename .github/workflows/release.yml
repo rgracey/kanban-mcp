@@ -18,21 +18,27 @@ jobs:
           - goos: linux
             goarch: amd64
             asset_name: kanban-mcp-linux-amd64
+            archive_ext: .tar.gz
           - goos: linux
             goarch: arm64
             asset_name: kanban-mcp-linux-arm64
+            archive_ext: .tar.gz
           - goos: darwin
             goarch: amd64
             asset_name: kanban-mcp-darwin-amd64
+            archive_ext: .tar.gz
           - goos: darwin
             goarch: arm64
             asset_name: kanban-mcp-darwin-arm64
+            archive_ext: .tar.gz
           - goos: windows
             goarch: amd64
-            asset_name: kanban-mcp-windows-amd64.exe
+            asset_name: kanban-mcp-windows-amd64
+            archive_ext: .zip
           - goos: windows
             goarch: arm64
-            asset_name: kanban-mcp-windows-arm64.exe
+            asset_name: kanban-mcp-windows-arm64
+            archive_ext: .zip
 
     steps:
       - uses: actions/checkout@v4
@@ -51,17 +57,32 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
           CGO_ENABLED: 0
         run: |
+          BINARY_NAME=kanban-mcp
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            BINARY_NAME=kanban-mcp.exe
+          fi
           go build \
             -trimpath \
             -ldflags="-s -w -X main.version=${{ github.ref_name }}" \
-            -o ${{ matrix.asset_name }} \
+            -o $BINARY_NAME \
             .
+
+      - name: Package (Unix)
+        if: matrix.goos != 'windows'
+        run: |
+          chmod +x kanban-mcp
+          tar -czvf ${{ matrix.asset_name }}${{ matrix.archive_ext }} kanban-mcp
+
+      - name: Package (Windows)
+        if: matrix.goos == 'windows'
+        run: |
+          zip ${{ matrix.asset_name }}${{ matrix.archive_ext }} kanban-mcp.exe
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.asset_name }}
-          path: ${{ matrix.asset_name }}
+          name: ${{ matrix.asset_name }}${{ matrix.archive_ext }}
+          path: ${{ matrix.asset_name }}${{ matrix.archive_ext }}
           retention-days: 1
 
   release:
