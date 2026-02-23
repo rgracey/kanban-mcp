@@ -2,7 +2,7 @@ package mcp
 
 import (
 	"context"
-	"encoding/json"
+	"fmt"
 
 	mcpgo "github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
@@ -11,490 +11,524 @@ import (
 )
 
 func registerTools(srv *server.MCPServer, s store.Store) {
-	// --- Boards ---
 
+	// -------------------------------------------------------------------------
+	// board — list | get | create | update | delete | summary
+	// -------------------------------------------------------------------------
 	srv.AddTool(
-		mcpgo.NewTool("list_boards",
-			mcpgo.WithDescription("List all kanban boards"),
+		mcpgo.NewTool("board",
+			mcpgo.WithDescription("Manage boards. action: list, get, create, update, delete, summary"),
+			mcpgo.WithString("action", mcpgo.Required(), mcpgo.Description("list|get|create|update|delete|summary")),
+			mcpgo.WithString("id", mcpgo.Description("Board ID (get/update/delete/summary)")),
+			mcpgo.WithString("name", mcpgo.Description("Board name (create/update)")),
+			mcpgo.WithString("description", mcpgo.Description("Board description (create/update)")),
 		),
 		func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
-			boards, err := s.ListBoards(ctx)
-			if err != nil {
-				return mcpgo.NewToolResultError(err.Error()), nil
-			}
-			return jsonResult(boards)
-		},
-	)
-
-	srv.AddTool(
-		mcpgo.NewTool("create_board",
-			mcpgo.WithDescription("Create a new kanban board"),
-			mcpgo.WithString("name", mcpgo.Required(), mcpgo.Description("Board name")),
-			mcpgo.WithString("description", mcpgo.Description("Board description")),
-		),
-		func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
-			name, err := req.RequireString("name")
-			if err != nil {
-				return mcpgo.NewToolResultError(err.Error()), nil
-			}
-			description := req.GetString("description", "")
-			board, err := s.CreateBoard(ctx, name, description)
-			if err != nil {
-				return mcpgo.NewToolResultError(err.Error()), nil
-			}
-			return jsonResult(board)
-		},
-	)
-
-	srv.AddTool(
-		mcpgo.NewTool("update_board",
-			mcpgo.WithDescription("Update an existing board"),
-			mcpgo.WithString("id", mcpgo.Required(), mcpgo.Description("Board ID")),
-			mcpgo.WithString("name", mcpgo.Description("New board name")),
-			mcpgo.WithString("description", mcpgo.Description("New board description")),
-		),
-		func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
-			id, err := req.RequireString("id")
+			action, err := req.RequireString("action")
 			if err != nil {
 				return mcpgo.NewToolResultError(err.Error()), nil
 			}
 			args := req.GetArguments()
-			var name, description *string
-			if v, ok := args["name"].(string); ok {
-				name = &v
-			}
-			if v, ok := args["description"].(string); ok {
-				description = &v
-			}
-			board, err := s.UpdateBoard(ctx, id, name, description)
-			if err != nil {
-				return mcpgo.NewToolResultError(err.Error()), nil
-			}
-			return jsonResult(board)
-		},
-	)
-
-	srv.AddTool(
-		mcpgo.NewTool("delete_board",
-			mcpgo.WithDescription("Delete a board and all its contents"),
-			mcpgo.WithString("id", mcpgo.Required(), mcpgo.Description("Board ID")),
-		),
-		func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
-			id, err := req.RequireString("id")
-			if err != nil {
-				return mcpgo.NewToolResultError(err.Error()), nil
-			}
-			if err := s.DeleteBoard(ctx, id); err != nil {
-				return mcpgo.NewToolResultError(err.Error()), nil
-			}
-			return mcpgo.NewToolResultText("deleted"), nil
-		},
-	)
-
-	srv.AddTool(
-		mcpgo.NewTool("get_board_summary",
-			mcpgo.WithDescription("Get ticket counts and epic summary for a board"),
-			mcpgo.WithString("id", mcpgo.Required(), mcpgo.Description("Board ID")),
-		),
-		func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
-			id, err := req.RequireString("id")
-			if err != nil {
-				return mcpgo.NewToolResultError(err.Error()), nil
-			}
-			summary, err := s.GetBoardSummary(ctx, id)
-			if err != nil {
-				return mcpgo.NewToolResultError(err.Error()), nil
-			}
-			return jsonResult(summary)
-		},
-	)
-
-	// --- Epics ---
-
-	srv.AddTool(
-		mcpgo.NewTool("list_epics",
-			mcpgo.WithDescription("List all epics on a board"),
-			mcpgo.WithString("board_id", mcpgo.Required(), mcpgo.Description("Board ID")),
-		),
-		func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
-			boardID, err := req.RequireString("board_id")
-			if err != nil {
-				return mcpgo.NewToolResultError(err.Error()), nil
-			}
-			epics, err := s.ListEpics(ctx, boardID)
-			if err != nil {
-				return mcpgo.NewToolResultError(err.Error()), nil
-			}
-			return jsonResult(epics)
-		},
-	)
-
-	srv.AddTool(
-		mcpgo.NewTool("create_epic",
-			mcpgo.WithDescription("Create a new epic on a board"),
-			mcpgo.WithString("board_id", mcpgo.Required(), mcpgo.Description("Board ID")),
-			mcpgo.WithString("title", mcpgo.Required(), mcpgo.Description("Epic title")),
-			mcpgo.WithString("description", mcpgo.Description("Epic description")),
-		),
-		func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
-			boardID, err := req.RequireString("board_id")
-			if err != nil {
-				return mcpgo.NewToolResultError(err.Error()), nil
-			}
-			title, err := req.RequireString("title")
-			if err != nil {
-				return mcpgo.NewToolResultError(err.Error()), nil
-			}
-			description := req.GetString("description", "")
-			epic, err := s.CreateEpic(ctx, boardID, title, description)
-			if err != nil {
-				return mcpgo.NewToolResultError(err.Error()), nil
-			}
-			return jsonResult(epic)
-		},
-	)
-
-	srv.AddTool(
-		mcpgo.NewTool("update_epic",
-			mcpgo.WithDescription("Update an existing epic"),
-			mcpgo.WithString("id", mcpgo.Required(), mcpgo.Description("Epic ID")),
-			mcpgo.WithString("title", mcpgo.Description("New title")),
-			mcpgo.WithString("description", mcpgo.Description("New description")),
-		),
-		func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
-			id, err := req.RequireString("id")
-			if err != nil {
-				return mcpgo.NewToolResultError(err.Error()), nil
-			}
-			args := req.GetArguments()
-			var title, description *string
-			if v, ok := args["title"].(string); ok {
-				title = &v
-			}
-			if v, ok := args["description"].(string); ok {
-				description = &v
-			}
-			epic, err := s.UpdateEpic(ctx, id, title, description)
-			if err != nil {
-				return mcpgo.NewToolResultError(err.Error()), nil
-			}
-			return jsonResult(epic)
-		},
-	)
-
-	srv.AddTool(
-		mcpgo.NewTool("delete_epic",
-			mcpgo.WithDescription("Delete an epic"),
-			mcpgo.WithString("id", mcpgo.Required(), mcpgo.Description("Epic ID")),
-		),
-		func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
-			id, err := req.RequireString("id")
-			if err != nil {
-				return mcpgo.NewToolResultError(err.Error()), nil
-			}
-			if err := s.DeleteEpic(ctx, id); err != nil {
-				return mcpgo.NewToolResultError(err.Error()), nil
-			}
-			return mcpgo.NewToolResultText("deleted"), nil
-		},
-	)
-
-	// --- Tickets ---
-
-	srv.AddTool(
-		mcpgo.NewTool("get_ticket",
-			mcpgo.WithDescription("Get a single ticket by ID, optionally including comments and audit history"),
-			mcpgo.WithString("id", mcpgo.Required(), mcpgo.Description("Ticket ID")),
-			mcpgo.WithBoolean("include_comments", mcpgo.Description("Include comments array in the response")),
-			mcpgo.WithBoolean("include_history", mcpgo.Description("Include audit event history array in the response")),
-		),
-		func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
-			id, err := req.RequireString("id")
-			if err != nil {
-				return mcpgo.NewToolResultError(err.Error()), nil
-			}
-			ticket, err := s.GetTicket(ctx, id)
-			if err != nil {
-				return mcpgo.NewToolResultError(err.Error()), nil
+			getString := func(k string) string {
+				v, _ := args[k].(string)
+				return v
 			}
 
-			// Build an envelope so we can conditionally add comments / history.
-			type envelope struct {
-				models.Ticket
-				Comments []models.Comment     `json:"comments,omitempty"`
-				History  []models.TicketEvent `json:"history,omitempty"`
-			}
-			out := envelope{Ticket: ticket}
-
-			args := req.GetArguments()
-			if v, ok := args["include_comments"].(bool); ok && v {
-				comments, err := s.ListComments(ctx, id)
+			switch action {
+			case "list":
+				boards, err := s.ListBoards(ctx)
 				if err != nil {
 					return mcpgo.NewToolResultError(err.Error()), nil
 				}
-				out.Comments = comments
-			}
-			if v, ok := args["include_history"].(bool); ok && v {
-				events, err := s.ListTicketEvents(ctx, id)
+				return jsonResult(boards)
+
+			case "get":
+				id := getString("id")
+				if id == "" {
+					return mcpgo.NewToolResultError("id required"), nil
+				}
+				board, err := s.GetBoard(ctx, id)
 				if err != nil {
 					return mcpgo.NewToolResultError(err.Error()), nil
 				}
-				out.History = events
-			}
-			return jsonResult(out)
-		},
-	)
+				return jsonResult(board)
 
-	srv.AddTool(
-		mcpgo.NewTool("list_tickets",
-			mcpgo.WithDescription("List tickets on a board, with optional filters and sorting"),
-			mcpgo.WithString("board_id", mcpgo.Required(), mcpgo.Description("Board ID")),
-			mcpgo.WithString("status", mcpgo.Description("Filter by status: todo, in_progress, done")),
-			mcpgo.WithString("priority", mcpgo.Description("Filter by priority: low, medium, high, critical")),
-			mcpgo.WithString("epic_id", mcpgo.Description("Filter by epic ID")),
-			mcpgo.WithString("q", mcpgo.Description("Keyword search")),
-			mcpgo.WithString("sort_by", mcpgo.Description("Sort field: priority | created_at (default: created_at)")),
-			mcpgo.WithString("sort_order", mcpgo.Description("Sort direction: asc | desc (default: desc)")),
-		),
-		func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
-			boardID, err := req.RequireString("board_id")
-			if err != nil {
-				return mcpgo.NewToolResultError(err.Error()), nil
-			}
-			args := req.GetArguments()
-			filter := models.TicketFilter{}
-			if v, ok := args["status"].(string); ok && v != "" {
-				st := models.Status(v)
-				filter.Status = &st
-			}
-			if v, ok := args["priority"].(string); ok && v != "" {
-				p := models.Priority(v)
-				filter.Priority = &p
-			}
-			if v, ok := args["epic_id"].(string); ok && v != "" {
-				filter.EpicID = &v
-			}
-			if v, ok := args["q"].(string); ok && v != "" {
-				filter.Query = &v
-			}
-			if v, ok := args["sort_by"].(string); ok && v != "" {
-				filter.SortBy = &v
-			}
-			if v, ok := args["sort_order"].(string); ok && v != "" {
-				filter.SortOrder = &v
-			}
-			tickets, err := s.ListTickets(ctx, boardID, filter)
-			if err != nil {
-				return mcpgo.NewToolResultError(err.Error()), nil
-			}
-			return jsonResult(tickets)
-		},
-	)
-
-	srv.AddTool(
-		mcpgo.NewTool("create_ticket",
-			mcpgo.WithDescription("Create a new ticket on a board"),
-			mcpgo.WithString("board_id", mcpgo.Required(), mcpgo.Description("Board ID")),
-			mcpgo.WithString("title", mcpgo.Required(), mcpgo.Description("Ticket title")),
-			mcpgo.WithString("description", mcpgo.Description("Ticket description")),
-			mcpgo.WithString("status", mcpgo.Description("todo | in_progress | done (default: todo)")),
-			mcpgo.WithString("priority", mcpgo.Description("low | medium | high | critical (default: medium)")),
-			mcpgo.WithString("epic_id", mcpgo.Description("Epic ID to attach to")),
-			mcpgo.WithString("assignee", mcpgo.Description("Name of the assignee")),
-		),
-		func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
-			boardID, err := req.RequireString("board_id")
-			if err != nil {
-				return mcpgo.NewToolResultError(err.Error()), nil
-			}
-			title, err := req.RequireString("title")
-			if err != nil {
-				return mcpgo.NewToolResultError(err.Error()), nil
-			}
-			args := req.GetArguments()
-			t := models.Ticket{
-				Title:       title,
-				Description: req.GetString("description", ""),
-				Status:      models.Status(req.GetString("status", string(models.StatusTodo))),
-				Priority:    models.Priority(req.GetString("priority", string(models.PriorityMedium))),
-				Assignee:    req.GetString("assignee", ""),
-			}
-			if v, ok := args["epic_id"].(string); ok && v != "" {
-				t.EpicID = &v
-			}
-			ticket, err := s.CreateTicket(ctx, boardID, t)
-			if err != nil {
-				return mcpgo.NewToolResultError(err.Error()), nil
-			}
-			return jsonResult(ticket)
-		},
-	)
-
-	srv.AddTool(
-		mcpgo.NewTool("update_ticket",
-			mcpgo.WithDescription("Update fields on an existing ticket"),
-			mcpgo.WithString("id", mcpgo.Required(), mcpgo.Description("Ticket ID")),
-			mcpgo.WithString("title", mcpgo.Description("New title")),
-			mcpgo.WithString("description", mcpgo.Description("New description")),
-			mcpgo.WithString("status", mcpgo.Description("New status")),
-			mcpgo.WithString("priority", mcpgo.Description("New priority")),
-			mcpgo.WithString("epic_id", mcpgo.Description("New epic ID (empty to clear)")),
-			mcpgo.WithString("assignee", mcpgo.Description("New assignee (empty to clear)")),
-		),
-		func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
-			id, err := req.RequireString("id")
-			if err != nil {
-				return mcpgo.NewToolResultError(err.Error()), nil
-			}
-			args := req.GetArguments()
-			fields := map[string]any{}
-			for _, key := range []string{"title", "description", "status", "priority", "epic_id", "assignee"} {
-				if v, ok := args[key]; ok {
-					fields[key] = v
+			case "create":
+				name := getString("name")
+				if name == "" {
+					return mcpgo.NewToolResultError("name required"), nil
 				}
+				board, err := s.CreateBoard(ctx, name, getString("description"))
+				if err != nil {
+					return mcpgo.NewToolResultError(err.Error()), nil
+				}
+				return jsonResult(board)
+
+			case "update":
+				id := getString("id")
+				if id == "" {
+					return mcpgo.NewToolResultError("id required"), nil
+				}
+				var name, desc *string
+				if v := getString("name"); v != "" {
+					name = &v
+				}
+				if v := getString("description"); v != "" {
+					desc = &v
+				}
+				board, err := s.UpdateBoard(ctx, id, name, desc)
+				if err != nil {
+					return mcpgo.NewToolResultError(err.Error()), nil
+				}
+				return jsonResult(board)
+
+			case "delete":
+				id := getString("id")
+				if id == "" {
+					return mcpgo.NewToolResultError("id required"), nil
+				}
+				if err := s.DeleteBoard(ctx, id); err != nil {
+					return mcpgo.NewToolResultError(err.Error()), nil
+				}
+				return mcpgo.NewToolResultText("deleted"), nil
+
+			case "summary":
+				id := getString("id")
+				if id == "" {
+					return mcpgo.NewToolResultError("id required"), nil
+				}
+				summary, err := s.GetBoardSummary(ctx, id)
+				if err != nil {
+					return mcpgo.NewToolResultError(err.Error()), nil
+				}
+				return jsonResult(summary)
+
+			default:
+				return mcpgo.NewToolResultError(fmt.Sprintf("unknown action %q", action)), nil
 			}
-			ticket, err := s.UpdateTicket(ctx, id, fields)
-			if err != nil {
-				return mcpgo.NewToolResultError(err.Error()), nil
-			}
-			return jsonResult(ticket)
 		},
 	)
 
+	// -------------------------------------------------------------------------
+	// epic — list | get | create | update | delete
+	// -------------------------------------------------------------------------
 	srv.AddTool(
-		mcpgo.NewTool("delete_ticket",
-			mcpgo.WithDescription("Delete a ticket"),
-			mcpgo.WithString("id", mcpgo.Required(), mcpgo.Description("Ticket ID")),
+		mcpgo.NewTool("epic",
+			mcpgo.WithDescription("Manage epics. action: list, get, create, update, delete"),
+			mcpgo.WithString("action", mcpgo.Required(), mcpgo.Description("list|get|create|update|delete")),
+			mcpgo.WithString("id", mcpgo.Description("Epic ID (get/update/delete)")),
+			mcpgo.WithString("board_id", mcpgo.Description("Board ID (list/create)")),
+			mcpgo.WithString("title", mcpgo.Description("Epic title (create/update)")),
+			mcpgo.WithString("description", mcpgo.Description("Epic description (create/update)")),
 		),
 		func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
-			id, err := req.RequireString("id")
-			if err != nil {
-				return mcpgo.NewToolResultError(err.Error()), nil
-			}
-			if err := s.DeleteTicket(ctx, id); err != nil {
-				return mcpgo.NewToolResultError(err.Error()), nil
-			}
-			return mcpgo.NewToolResultText("deleted"), nil
-		},
-	)
-
-	srv.AddTool(
-		mcpgo.NewTool("move_ticket",
-			mcpgo.WithDescription("Move a ticket to a different status column"),
-			mcpgo.WithString("id", mcpgo.Required(), mcpgo.Description("Ticket ID")),
-			mcpgo.WithString("status", mcpgo.Required(), mcpgo.Description("Target status: todo, in_progress, done")),
-		),
-		func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
-			id, err := req.RequireString("id")
-			if err != nil {
-				return mcpgo.NewToolResultError(err.Error()), nil
-			}
-			status, err := req.RequireString("status")
-			if err != nil {
-				return mcpgo.NewToolResultError(err.Error()), nil
-			}
-			ticket, err := s.UpdateTicket(ctx, id, map[string]any{"status": status})
-			if err != nil {
-				return mcpgo.NewToolResultError(err.Error()), nil
-			}
-			return jsonResult(ticket)
-		},
-	)
-
-	// --- Tasks ---
-
-	srv.AddTool(
-		mcpgo.NewTool("list_tasks",
-			mcpgo.WithDescription("List checklist tasks for a ticket"),
-			mcpgo.WithString("ticket_id", mcpgo.Required(), mcpgo.Description("Ticket ID")),
-		),
-		func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
-			ticketID, err := req.RequireString("ticket_id")
-			if err != nil {
-				return mcpgo.NewToolResultError(err.Error()), nil
-			}
-			tasks, err := s.ListTasks(ctx, ticketID)
-			if err != nil {
-				return mcpgo.NewToolResultError(err.Error()), nil
-			}
-			return jsonResult(tasks)
-		},
-	)
-
-	srv.AddTool(
-		mcpgo.NewTool("create_task",
-			mcpgo.WithDescription("Add a checklist task to a ticket"),
-			mcpgo.WithString("ticket_id", mcpgo.Required(), mcpgo.Description("Ticket ID")),
-			mcpgo.WithString("title", mcpgo.Required(), mcpgo.Description("Task title")),
-		),
-		func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
-			ticketID, err := req.RequireString("ticket_id")
-			if err != nil {
-				return mcpgo.NewToolResultError(err.Error()), nil
-			}
-			title, err := req.RequireString("title")
-			if err != nil {
-				return mcpgo.NewToolResultError(err.Error()), nil
-			}
-			task, err := s.CreateTask(ctx, ticketID, title)
-			if err != nil {
-				return mcpgo.NewToolResultError(err.Error()), nil
-			}
-			return jsonResult(task)
-		},
-	)
-
-	srv.AddTool(
-		mcpgo.NewTool("update_task",
-			mcpgo.WithDescription("Update a checklist task (title and/or done state)"),
-			mcpgo.WithString("id", mcpgo.Required(), mcpgo.Description("Task ID")),
-			mcpgo.WithString("title", mcpgo.Description("New title")),
-			mcpgo.WithBoolean("done", mcpgo.Description("Mark task done (true) or undone (false)")),
-		),
-		func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
-			id, err := req.RequireString("id")
+			action, err := req.RequireString("action")
 			if err != nil {
 				return mcpgo.NewToolResultError(err.Error()), nil
 			}
 			args := req.GetArguments()
-			var title *string
-			if v, ok := args["title"].(string); ok && v != "" {
-				title = &v
+			getString := func(k string) string {
+				v, _ := args[k].(string)
+				return v
 			}
-			var done *bool
-			if v, ok := args["done"].(bool); ok {
-				done = &v
+
+			switch action {
+			case "list":
+				boardID := getString("board_id")
+				if boardID == "" {
+					return mcpgo.NewToolResultError("board_id required"), nil
+				}
+				epics, err := s.ListEpics(ctx, boardID)
+				if err != nil {
+					return mcpgo.NewToolResultError(err.Error()), nil
+				}
+				return jsonResult(epics)
+
+			case "get":
+				id := getString("id")
+				if id == "" {
+					return mcpgo.NewToolResultError("id required"), nil
+				}
+				epic, err := s.GetEpic(ctx, id)
+				if err != nil {
+					return mcpgo.NewToolResultError(err.Error()), nil
+				}
+				return jsonResult(epic)
+
+			case "create":
+				boardID := getString("board_id")
+				title := getString("title")
+				if boardID == "" || title == "" {
+					return mcpgo.NewToolResultError("board_id and title required"), nil
+				}
+				epic, err := s.CreateEpic(ctx, boardID, title, getString("description"))
+				if err != nil {
+					return mcpgo.NewToolResultError(err.Error()), nil
+				}
+				return jsonResult(epic)
+
+			case "update":
+				id := getString("id")
+				if id == "" {
+					return mcpgo.NewToolResultError("id required"), nil
+				}
+				var title, desc *string
+				if v := getString("title"); v != "" {
+					title = &v
+				}
+				if v := getString("description"); v != "" {
+					desc = &v
+				}
+				epic, err := s.UpdateEpic(ctx, id, title, desc)
+				if err != nil {
+					return mcpgo.NewToolResultError(err.Error()), nil
+				}
+				return jsonResult(epic)
+
+			case "delete":
+				id := getString("id")
+				if id == "" {
+					return mcpgo.NewToolResultError("id required"), nil
+				}
+				if err := s.DeleteEpic(ctx, id); err != nil {
+					return mcpgo.NewToolResultError(err.Error()), nil
+				}
+				return mcpgo.NewToolResultText("deleted"), nil
+
+			default:
+				return mcpgo.NewToolResultError(fmt.Sprintf("unknown action %q", action)), nil
 			}
-			task, err := s.UpdateTask(ctx, id, title, done)
-			if err != nil {
-				return mcpgo.NewToolResultError(err.Error()), nil
-			}
-			return jsonResult(task)
 		},
 	)
 
+	// -------------------------------------------------------------------------
+	// ticket — list | get | create | update | delete | move
+	// -------------------------------------------------------------------------
 	srv.AddTool(
-		mcpgo.NewTool("delete_task",
-			mcpgo.WithDescription("Delete a checklist task"),
-			mcpgo.WithString("id", mcpgo.Required(), mcpgo.Description("Task ID")),
+		mcpgo.NewTool("ticket",
+			mcpgo.WithDescription("Manage tickets. action: list, get, create, update, delete, move"),
+			mcpgo.WithString("action", mcpgo.Required(), mcpgo.Description("list|get|create|update|delete|move")),
+			mcpgo.WithString("id", mcpgo.Description("Ticket ID (get/update/delete/move)")),
+			mcpgo.WithString("board_id", mcpgo.Description("Board ID (list/create)")),
+			mcpgo.WithString("title", mcpgo.Description("Title (create/update)")),
+			mcpgo.WithString("description", mcpgo.Description("Description (create/update)")),
+			mcpgo.WithString("status", mcpgo.Description("todo|in_progress|done")),
+			mcpgo.WithString("priority", mcpgo.Description("low|medium|high|critical")),
+			mcpgo.WithString("epic_id", mcpgo.Description("Epic ID, empty to clear")),
+			mcpgo.WithString("assignee", mcpgo.Description("Assignee name, empty to clear")),
+			mcpgo.WithString("filter_status", mcpgo.Description("Filter by status (list)")),
+			mcpgo.WithString("filter_priority", mcpgo.Description("Filter by priority (list)")),
+			mcpgo.WithString("filter_epic_id", mcpgo.Description("Filter by epic (list)")),
+			mcpgo.WithString("q", mcpgo.Description("Keyword search (list)")),
+			mcpgo.WithString("sort_by", mcpgo.Description("priority|created_at (list)")),
+			mcpgo.WithString("sort_order", mcpgo.Description("asc|desc (list)")),
+			mcpgo.WithBoolean("include_comments", mcpgo.Description("Embed comments (get)")),
+			mcpgo.WithBoolean("include_history", mcpgo.Description("Embed audit history (get)")),
 		),
 		func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
-			id, err := req.RequireString("id")
+			action, err := req.RequireString("action")
 			if err != nil {
 				return mcpgo.NewToolResultError(err.Error()), nil
 			}
-			if err := s.DeleteTask(ctx, id); err != nil {
-				return mcpgo.NewToolResultError(err.Error()), nil
+			args := req.GetArguments()
+			getString := func(k string) string {
+				v, _ := args[k].(string)
+				return v
 			}
-			return mcpgo.NewToolResultText("deleted"), nil
+
+			switch action {
+			case "list":
+				boardID := getString("board_id")
+				if boardID == "" {
+					return mcpgo.NewToolResultError("board_id required"), nil
+				}
+				filter := models.TicketFilter{}
+				if v := getString("filter_status"); v != "" {
+					st := models.Status(v)
+					filter.Status = &st
+				}
+				if v := getString("filter_priority"); v != "" {
+					p := models.Priority(v)
+					filter.Priority = &p
+				}
+				if v := getString("filter_epic_id"); v != "" {
+					filter.EpicID = &v
+				}
+				if v := getString("q"); v != "" {
+					filter.Query = &v
+				}
+				if v := getString("sort_by"); v != "" {
+					filter.SortBy = &v
+				}
+				if v := getString("sort_order"); v != "" {
+					filter.SortOrder = &v
+				}
+				tickets, err := s.ListTickets(ctx, boardID, filter)
+				if err != nil {
+					return mcpgo.NewToolResultError(err.Error()), nil
+				}
+				return jsonResult(tickets)
+
+			case "get":
+				id := getString("id")
+				if id == "" {
+					return mcpgo.NewToolResultError("id required"), nil
+				}
+				ticket, err := s.GetTicket(ctx, id)
+				if err != nil {
+					return mcpgo.NewToolResultError(err.Error()), nil
+				}
+				type envelope struct {
+					models.Ticket
+					Comments []models.Comment     `json:"comments,omitempty"`
+					History  []models.TicketEvent `json:"history,omitempty"`
+				}
+				out := envelope{Ticket: ticket}
+				if v, ok := args["include_comments"].(bool); ok && v {
+					comments, err := s.ListComments(ctx, id)
+					if err != nil {
+						return mcpgo.NewToolResultError(err.Error()), nil
+					}
+					out.Comments = comments
+				}
+				if v, ok := args["include_history"].(bool); ok && v {
+					events, err := s.ListTicketEvents(ctx, id)
+					if err != nil {
+						return mcpgo.NewToolResultError(err.Error()), nil
+					}
+					out.History = events
+				}
+				return jsonResult(out)
+
+			case "create":
+				boardID := getString("board_id")
+				title := getString("title")
+				if boardID == "" || title == "" {
+					return mcpgo.NewToolResultError("board_id and title required"), nil
+				}
+				t := models.Ticket{
+					Title:       title,
+					Description: getString("description"),
+					Status:      models.Status(req.GetString("status", string(models.StatusTodo))),
+					Priority:    models.Priority(req.GetString("priority", string(models.PriorityMedium))),
+					Assignee:    getString("assignee"),
+				}
+				if v := getString("epic_id"); v != "" {
+					t.EpicID = &v
+				}
+				ticket, err := s.CreateTicket(ctx, boardID, t)
+				if err != nil {
+					return mcpgo.NewToolResultError(err.Error()), nil
+				}
+				return jsonResult(ticket)
+
+			case "update":
+				id := getString("id")
+				if id == "" {
+					return mcpgo.NewToolResultError("id required"), nil
+				}
+				fields := map[string]any{}
+				for _, k := range []string{"title", "description", "status", "priority", "epic_id", "assignee"} {
+					if v, ok := args[k]; ok {
+						fields[k] = v
+					}
+				}
+				ticket, err := s.UpdateTicket(ctx, id, fields)
+				if err != nil {
+					return mcpgo.NewToolResultError(err.Error()), nil
+				}
+				return jsonResult(ticket)
+
+			case "delete":
+				id := getString("id")
+				if id == "" {
+					return mcpgo.NewToolResultError("id required"), nil
+				}
+				if err := s.DeleteTicket(ctx, id); err != nil {
+					return mcpgo.NewToolResultError(err.Error()), nil
+				}
+				return mcpgo.NewToolResultText("deleted"), nil
+
+			case "move":
+				id := getString("id")
+				status := getString("status")
+				if id == "" || status == "" {
+					return mcpgo.NewToolResultError("id and status required"), nil
+				}
+				ticket, err := s.UpdateTicket(ctx, id, map[string]any{"status": status})
+				if err != nil {
+					return mcpgo.NewToolResultError(err.Error()), nil
+				}
+				return jsonResult(ticket)
+
+			default:
+				return mcpgo.NewToolResultError(fmt.Sprintf("unknown action %q", action)), nil
+			}
 		},
 	)
 
-	// --- Events ---
-
+	// -------------------------------------------------------------------------
+	// task — list | create | update | delete
+	// -------------------------------------------------------------------------
 	srv.AddTool(
-		mcpgo.NewTool("list_ticket_events",
-			mcpgo.WithDescription("List the audit trail / history for a ticket"),
+		mcpgo.NewTool("task",
+			mcpgo.WithDescription("Manage checklist tasks on a ticket. action: list, create, update, delete"),
+			mcpgo.WithString("action", mcpgo.Required(), mcpgo.Description("list|create|update|delete")),
+			mcpgo.WithString("id", mcpgo.Description("Task ID (update/delete)")),
+			mcpgo.WithString("ticket_id", mcpgo.Description("Ticket ID (list/create)")),
+			mcpgo.WithString("title", mcpgo.Description("Task title (create/update)")),
+			mcpgo.WithBoolean("done", mcpgo.Description("Mark done/undone (update)")),
+		),
+		func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
+			action, err := req.RequireString("action")
+			if err != nil {
+				return mcpgo.NewToolResultError(err.Error()), nil
+			}
+			args := req.GetArguments()
+			getString := func(k string) string {
+				v, _ := args[k].(string)
+				return v
+			}
+
+			switch action {
+			case "list":
+				ticketID := getString("ticket_id")
+				if ticketID == "" {
+					return mcpgo.NewToolResultError("ticket_id required"), nil
+				}
+				tasks, err := s.ListTasks(ctx, ticketID)
+				if err != nil {
+					return mcpgo.NewToolResultError(err.Error()), nil
+				}
+				return jsonResult(tasks)
+
+			case "create":
+				ticketID := getString("ticket_id")
+				title := getString("title")
+				if ticketID == "" || title == "" {
+					return mcpgo.NewToolResultError("ticket_id and title required"), nil
+				}
+				task, err := s.CreateTask(ctx, ticketID, title)
+				if err != nil {
+					return mcpgo.NewToolResultError(err.Error()), nil
+				}
+				return jsonResult(task)
+
+			case "update":
+				id := getString("id")
+				if id == "" {
+					return mcpgo.NewToolResultError("id required"), nil
+				}
+				var title *string
+				if v := getString("title"); v != "" {
+					title = &v
+				}
+				var done *bool
+				if v, ok := args["done"].(bool); ok {
+					done = &v
+				}
+				task, err := s.UpdateTask(ctx, id, title, done)
+				if err != nil {
+					return mcpgo.NewToolResultError(err.Error()), nil
+				}
+				return jsonResult(task)
+
+			case "delete":
+				id := getString("id")
+				if id == "" {
+					return mcpgo.NewToolResultError("id required"), nil
+				}
+				if err := s.DeleteTask(ctx, id); err != nil {
+					return mcpgo.NewToolResultError(err.Error()), nil
+				}
+				return mcpgo.NewToolResultText("deleted"), nil
+
+			default:
+				return mcpgo.NewToolResultError(fmt.Sprintf("unknown action %q", action)), nil
+			}
+		},
+	)
+
+	// -------------------------------------------------------------------------
+	// comment — list | add | update | delete
+	// -------------------------------------------------------------------------
+	srv.AddTool(
+		mcpgo.NewTool("comment",
+			mcpgo.WithDescription("Manage comments on a ticket. action: list, add, update, delete"),
+			mcpgo.WithString("action", mcpgo.Required(), mcpgo.Description("list|add|update|delete")),
+			mcpgo.WithString("id", mcpgo.Description("Comment ID (update/delete)")),
+			mcpgo.WithString("ticket_id", mcpgo.Description("Ticket ID (list/add)")),
+			mcpgo.WithString("body", mcpgo.Description("Comment text (add/update)")),
+		),
+		func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
+			action, err := req.RequireString("action")
+			if err != nil {
+				return mcpgo.NewToolResultError(err.Error()), nil
+			}
+			args := req.GetArguments()
+			getString := func(k string) string {
+				v, _ := args[k].(string)
+				return v
+			}
+
+			switch action {
+			case "list":
+				ticketID := getString("ticket_id")
+				if ticketID == "" {
+					return mcpgo.NewToolResultError("ticket_id required"), nil
+				}
+				comments, err := s.ListComments(ctx, ticketID)
+				if err != nil {
+					return mcpgo.NewToolResultError(err.Error()), nil
+				}
+				return jsonResult(comments)
+
+			case "add":
+				ticketID := getString("ticket_id")
+				body := getString("body")
+				if ticketID == "" || body == "" {
+					return mcpgo.NewToolResultError("ticket_id and body required"), nil
+				}
+				comment, err := s.CreateComment(ctx, ticketID, body)
+				if err != nil {
+					return mcpgo.NewToolResultError(err.Error()), nil
+				}
+				return jsonResult(comment)
+
+			case "update":
+				id := getString("id")
+				body := getString("body")
+				if id == "" || body == "" {
+					return mcpgo.NewToolResultError("id and body required"), nil
+				}
+				comment, err := s.UpdateComment(ctx, id, body)
+				if err != nil {
+					return mcpgo.NewToolResultError(err.Error()), nil
+				}
+				return jsonResult(comment)
+
+			case "delete":
+				id := getString("id")
+				if id == "" {
+					return mcpgo.NewToolResultError("id required"), nil
+				}
+				if err := s.DeleteComment(ctx, id); err != nil {
+					return mcpgo.NewToolResultError(err.Error()), nil
+				}
+				return mcpgo.NewToolResultText("deleted"), nil
+
+			default:
+				return mcpgo.NewToolResultError(fmt.Sprintf("unknown action %q", action)), nil
+			}
+		},
+	)
+
+	// -------------------------------------------------------------------------
+	// ticket_history — list audit events for a ticket
+	// -------------------------------------------------------------------------
+	srv.AddTool(
+		mcpgo.NewTool("ticket_history",
+			mcpgo.WithDescription("List the audit event history for a ticket"),
 			mcpgo.WithString("ticket_id", mcpgo.Required(), mcpgo.Description("Ticket ID")),
 		),
 		func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
@@ -507,121 +541,6 @@ func registerTools(srv *server.MCPServer, s store.Store) {
 				return mcpgo.NewToolResultError(err.Error()), nil
 			}
 			return jsonResult(events)
-		},
-	)
-
-	srv.AddTool(
-		mcpgo.NewTool("add_ticket_event",
-			mcpgo.WithDescription("Manually append an event to a ticket's audit trail"),
-			mcpgo.WithString("ticket_id", mcpgo.Required(), mcpgo.Description("Ticket ID")),
-			mcpgo.WithString("type", mcpgo.Required(), mcpgo.Description("Event type: created, moved, edited, commented")),
-			mcpgo.WithString("actor", mcpgo.Description("Who performed the action")),
-			mcpgo.WithString("payload", mcpgo.Description("JSON object with event details")),
-		),
-		func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
-			ticketID, err := req.RequireString("ticket_id")
-			if err != nil {
-				return mcpgo.NewToolResultError(err.Error()), nil
-			}
-			eventType, err := req.RequireString("type")
-			if err != nil {
-				return mcpgo.NewToolResultError(err.Error()), nil
-			}
-			actor := req.GetString("actor", "")
-			payload := map[string]any{}
-			if raw := req.GetString("payload", ""); raw != "" {
-				if err := json.Unmarshal([]byte(raw), &payload); err != nil {
-					return mcpgo.NewToolResultError("payload must be valid JSON: " + err.Error()), nil
-				}
-			}
-			event, err := s.CreateTicketEvent(ctx, ticketID, models.TicketEventType(eventType), actor, payload)
-			if err != nil {
-				return mcpgo.NewToolResultError(err.Error()), nil
-			}
-			return jsonResult(event)
-		},
-	)
-
-	// --- Comments ---
-
-	srv.AddTool(
-		mcpgo.NewTool("list_comments",
-			mcpgo.WithDescription("List comments on a ticket"),
-			mcpgo.WithString("ticket_id", mcpgo.Required(), mcpgo.Description("Ticket ID")),
-		),
-		func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
-			ticketID, err := req.RequireString("ticket_id")
-			if err != nil {
-				return mcpgo.NewToolResultError(err.Error()), nil
-			}
-			comments, err := s.ListComments(ctx, ticketID)
-			if err != nil {
-				return mcpgo.NewToolResultError(err.Error()), nil
-			}
-			return jsonResult(comments)
-		},
-	)
-
-	srv.AddTool(
-		mcpgo.NewTool("add_comment",
-			mcpgo.WithDescription("Add a comment to a ticket"),
-			mcpgo.WithString("ticket_id", mcpgo.Required(), mcpgo.Description("Ticket ID")),
-			mcpgo.WithString("body", mcpgo.Required(), mcpgo.Description("Comment text")),
-		),
-		func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
-			ticketID, err := req.RequireString("ticket_id")
-			if err != nil {
-				return mcpgo.NewToolResultError(err.Error()), nil
-			}
-			body, err := req.RequireString("body")
-			if err != nil {
-				return mcpgo.NewToolResultError(err.Error()), nil
-			}
-			comment, err := s.CreateComment(ctx, ticketID, body)
-			if err != nil {
-				return mcpgo.NewToolResultError(err.Error()), nil
-			}
-			return jsonResult(comment)
-		},
-	)
-
-	srv.AddTool(
-		mcpgo.NewTool("update_comment",
-			mcpgo.WithDescription("Update a comment's body"),
-			mcpgo.WithString("id", mcpgo.Required(), mcpgo.Description("Comment ID")),
-			mcpgo.WithString("body", mcpgo.Required(), mcpgo.Description("New comment text")),
-		),
-		func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
-			id, err := req.RequireString("id")
-			if err != nil {
-				return mcpgo.NewToolResultError(err.Error()), nil
-			}
-			body, err := req.RequireString("body")
-			if err != nil {
-				return mcpgo.NewToolResultError(err.Error()), nil
-			}
-			comment, err := s.UpdateComment(ctx, id, body)
-			if err != nil {
-				return mcpgo.NewToolResultError(err.Error()), nil
-			}
-			return jsonResult(comment)
-		},
-	)
-
-	srv.AddTool(
-		mcpgo.NewTool("delete_comment",
-			mcpgo.WithDescription("Delete a comment"),
-			mcpgo.WithString("id", mcpgo.Required(), mcpgo.Description("Comment ID")),
-		),
-		func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
-			id, err := req.RequireString("id")
-			if err != nil {
-				return mcpgo.NewToolResultError(err.Error()), nil
-			}
-			if err := s.DeleteComment(ctx, id); err != nil {
-				return mcpgo.NewToolResultError(err.Error()), nil
-			}
-			return mcpgo.NewToolResultText("deleted"), nil
 		},
 	)
 }

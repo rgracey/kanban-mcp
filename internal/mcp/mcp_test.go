@@ -52,12 +52,12 @@ func decodeResult(t *testing.T, result *mcpgo.CallToolResult, v any) {
 func TestAllToolsRegistered(t *testing.T) {
 	srv := setupServer(t)
 	expected := []string{
-		"list_boards", "create_board", "update_board", "delete_board", "get_board_summary",
-		"list_epics", "create_epic", "update_epic", "delete_epic",
-		"list_tickets", "get_ticket", "create_ticket", "update_ticket", "delete_ticket", "move_ticket",
-		"list_tasks", "create_task", "update_task", "delete_task",
-		"list_ticket_events", "add_ticket_event",
-		"list_comments", "add_comment", "update_comment", "delete_comment",
+		"board",
+		"epic",
+		"ticket",
+		"task",
+		"comment",
+		"ticket_history",
 	}
 	tools := srv.ListTools()
 	for _, name := range expected {
@@ -66,83 +66,84 @@ func TestAllToolsRegistered(t *testing.T) {
 	assert.Len(t, tools, len(expected), "unexpected number of tools")
 }
 
-// TestBoardCRUD exercises board tools.
+// TestBoardCRUD exercises board tool actions.
 func TestBoardCRUD(t *testing.T) {
 	srv := setupServer(t)
 
-	// create_board → list_boards returns it
-	res := call(t, srv, "create_board", map[string]any{"name": "My Board", "description": "desc"})
+	// create
+	res := call(t, srv, "board", map[string]any{"action": "create", "name": "My Board", "description": "desc"})
 	var created models.Board
 	decodeResult(t, res, &created)
 	assert.Equal(t, "My Board", created.Name)
 	assert.NotEmpty(t, created.ID)
 
-	listRes := call(t, srv, "list_boards", nil)
+	// list
+	listRes := call(t, srv, "board", map[string]any{"action": "list"})
 	var boards []models.Board
 	decodeResult(t, listRes, &boards)
 	require.Len(t, boards, 1)
 	assert.Equal(t, created.ID, boards[0].ID)
 
-	// update_board
-	updateRes := call(t, srv, "update_board", map[string]any{"id": created.ID, "name": "Renamed"})
+	// update
+	updateRes := call(t, srv, "board", map[string]any{"action": "update", "id": created.ID, "name": "Renamed"})
 	var updated models.Board
 	decodeResult(t, updateRes, &updated)
 	assert.Equal(t, "Renamed", updated.Name)
 
-	// get_board_summary
-	summRes := call(t, srv, "get_board_summary", map[string]any{"id": created.ID})
+	// summary
+	summRes := call(t, srv, "board", map[string]any{"action": "summary", "id": created.ID})
 	var summary models.BoardSummary
 	decodeResult(t, summRes, &summary)
 	assert.Equal(t, created.ID, summary.BoardID)
 
-	// delete_board
-	delRes := call(t, srv, "delete_board", map[string]any{"id": created.ID})
+	// delete
+	delRes := call(t, srv, "board", map[string]any{"action": "delete", "id": created.ID})
 	require.False(t, delRes.IsError)
 
-	listRes2 := call(t, srv, "list_boards", nil)
+	listRes2 := call(t, srv, "board", map[string]any{"action": "list"})
 	var boards2 []models.Board
 	decodeResult(t, listRes2, &boards2)
 	assert.Empty(t, boards2)
 }
 
-// TestEpicCRUD exercises epic tools.
+// TestEpicCRUD exercises epic tool actions.
 func TestEpicCRUD(t *testing.T) {
 	srv := setupServer(t)
 
-	// Need a board first
-	boardRes := call(t, srv, "create_board", map[string]any{"name": "B"})
+	boardRes := call(t, srv, "board", map[string]any{"action": "create", "name": "B"})
 	var board models.Board
 	decodeResult(t, boardRes, &board)
 
-	epicRes := call(t, srv, "create_epic", map[string]any{"board_id": board.ID, "title": "E1"})
+	epicRes := call(t, srv, "epic", map[string]any{"action": "create", "board_id": board.ID, "title": "E1"})
 	var epic models.Epic
 	decodeResult(t, epicRes, &epic)
 	assert.Equal(t, "E1", epic.Title)
 
-	listRes := call(t, srv, "list_epics", map[string]any{"board_id": board.ID})
+	listRes := call(t, srv, "epic", map[string]any{"action": "list", "board_id": board.ID})
 	var epics []models.Epic
 	decodeResult(t, listRes, &epics)
 	require.Len(t, epics, 1)
 
-	updRes := call(t, srv, "update_epic", map[string]any{"id": epic.ID, "title": "E1-updated"})
+	updRes := call(t, srv, "epic", map[string]any{"action": "update", "id": epic.ID, "title": "E1-updated"})
 	var updEpic models.Epic
 	decodeResult(t, updRes, &updEpic)
 	assert.Equal(t, "E1-updated", updEpic.Title)
 
-	delRes := call(t, srv, "delete_epic", map[string]any{"id": epic.ID})
+	delRes := call(t, srv, "epic", map[string]any{"action": "delete", "id": epic.ID})
 	assert.False(t, delRes.IsError)
 }
 
-// TestTicketWorkflow exercises create_ticket → move_ticket → list_tickets with filter.
+// TestTicketWorkflow exercises ticket tool actions.
 func TestTicketWorkflow(t *testing.T) {
 	srv := setupServer(t)
 
-	boardRes := call(t, srv, "create_board", map[string]any{"name": "B"})
+	boardRes := call(t, srv, "board", map[string]any{"action": "create", "name": "B"})
 	var board models.Board
 	decodeResult(t, boardRes, &board)
 
-	// create_ticket (defaults to todo)
-	ticketRes := call(t, srv, "create_ticket", map[string]any{
+	// create (defaults to todo)
+	ticketRes := call(t, srv, "ticket", map[string]any{
+		"action":   "create",
 		"board_id": board.ID,
 		"title":    "Fix bug",
 	})
@@ -151,8 +152,9 @@ func TestTicketWorkflow(t *testing.T) {
 	assert.Equal(t, "Fix bug", ticket.Title)
 	assert.Equal(t, models.StatusTodo, ticket.Status)
 
-	// move_ticket → in_progress
-	moveRes := call(t, srv, "move_ticket", map[string]any{
+	// move → in_progress
+	moveRes := call(t, srv, "ticket", map[string]any{
+		"action": "move",
 		"id":     ticket.ID,
 		"status": "in_progress",
 	})
@@ -160,27 +162,30 @@ func TestTicketWorkflow(t *testing.T) {
 	decodeResult(t, moveRes, &moved)
 	assert.Equal(t, models.StatusInProgress, moved.Status)
 
-	// list_tickets?status=in_progress should return the ticket
-	listRes := call(t, srv, "list_tickets", map[string]any{
-		"board_id": board.ID,
-		"status":   "in_progress",
+	// list with filter_status=in_progress
+	listRes := call(t, srv, "ticket", map[string]any{
+		"action":        "list",
+		"board_id":      board.ID,
+		"filter_status": "in_progress",
 	})
 	var tickets []models.Ticket
 	decodeResult(t, listRes, &tickets)
 	require.Len(t, tickets, 1)
 	assert.Equal(t, ticket.ID, tickets[0].ID)
 
-	// list_tickets?status=todo should be empty
-	listTodoRes := call(t, srv, "list_tickets", map[string]any{
-		"board_id": board.ID,
-		"status":   "todo",
+	// list with filter_status=todo should be empty
+	listTodoRes := call(t, srv, "ticket", map[string]any{
+		"action":        "list",
+		"board_id":      board.ID,
+		"filter_status": "todo",
 	})
 	var todoTickets []models.Ticket
 	decodeResult(t, listTodoRes, &todoTickets)
 	assert.Empty(t, todoTickets)
 
-	// update_ticket fields
-	updRes := call(t, srv, "update_ticket", map[string]any{
+	// update fields
+	updRes := call(t, srv, "ticket", map[string]any{
+		"action":   "update",
 		"id":       ticket.ID,
 		"priority": "high",
 	})
@@ -188,28 +193,39 @@ func TestTicketWorkflow(t *testing.T) {
 	decodeResult(t, updRes, &updTicket)
 	assert.Equal(t, models.PriorityHigh, updTicket.Priority)
 
-	// delete_ticket
-	delRes := call(t, srv, "delete_ticket", map[string]any{"id": ticket.ID})
+	// get with include_comments and include_history
+	getRes := call(t, srv, "ticket", map[string]any{
+		"action":           "get",
+		"id":               ticket.ID,
+		"include_comments": true,
+		"include_history":  true,
+	})
+	require.False(t, getRes.IsError)
+
+	// delete
+	delRes := call(t, srv, "ticket", map[string]any{"action": "delete", "id": ticket.ID})
 	assert.False(t, delRes.IsError)
 }
 
-// TestCommentCRUD exercises comment tools.
+// TestCommentCRUD exercises comment tool actions.
 func TestCommentCRUD(t *testing.T) {
 	srv := setupServer(t)
 
-	boardRes := call(t, srv, "create_board", map[string]any{"name": "B"})
+	boardRes := call(t, srv, "board", map[string]any{"action": "create", "name": "B"})
 	var board models.Board
 	decodeResult(t, boardRes, &board)
 
-	ticketRes := call(t, srv, "create_ticket", map[string]any{
+	ticketRes := call(t, srv, "ticket", map[string]any{
+		"action":   "create",
 		"board_id": board.ID,
 		"title":    "T",
 	})
 	var ticket models.Ticket
 	decodeResult(t, ticketRes, &ticket)
 
-	// add_comment
-	addRes := call(t, srv, "add_comment", map[string]any{
+	// add
+	addRes := call(t, srv, "comment", map[string]any{
+		"action":    "add",
 		"ticket_id": ticket.ID,
 		"body":      "first comment",
 	})
@@ -217,27 +233,104 @@ func TestCommentCRUD(t *testing.T) {
 	decodeResult(t, addRes, &comment)
 	assert.Equal(t, "first comment", comment.Body)
 
-	// list_comments
-	listRes := call(t, srv, "list_comments", map[string]any{"ticket_id": ticket.ID})
+	// list
+	listRes := call(t, srv, "comment", map[string]any{"action": "list", "ticket_id": ticket.ID})
 	var comments []models.Comment
 	decodeResult(t, listRes, &comments)
 	require.Len(t, comments, 1)
 
-	// update_comment
-	updRes := call(t, srv, "update_comment", map[string]any{
-		"id":   comment.ID,
-		"body": "edited",
+	// update
+	updRes := call(t, srv, "comment", map[string]any{
+		"action": "update",
+		"id":     comment.ID,
+		"body":   "edited",
 	})
 	var updComment models.Comment
 	decodeResult(t, updRes, &updComment)
 	assert.Equal(t, "edited", updComment.Body)
 
-	// delete_comment
-	delRes := call(t, srv, "delete_comment", map[string]any{"id": comment.ID})
+	// delete
+	delRes := call(t, srv, "comment", map[string]any{"action": "delete", "id": comment.ID})
 	assert.False(t, delRes.IsError)
 
-	listRes2 := call(t, srv, "list_comments", map[string]any{"ticket_id": ticket.ID})
+	listRes2 := call(t, srv, "comment", map[string]any{"action": "list", "ticket_id": ticket.ID})
 	var comments2 []models.Comment
 	decodeResult(t, listRes2, &comments2)
 	assert.Empty(t, comments2)
+}
+
+// TestTaskCRUD exercises task tool actions.
+func TestTaskCRUD(t *testing.T) {
+	srv := setupServer(t)
+
+	boardRes := call(t, srv, "board", map[string]any{"action": "create", "name": "B"})
+	var board models.Board
+	decodeResult(t, boardRes, &board)
+
+	ticketRes := call(t, srv, "ticket", map[string]any{
+		"action":   "create",
+		"board_id": board.ID,
+		"title":    "T",
+	})
+	var ticket models.Ticket
+	decodeResult(t, ticketRes, &ticket)
+
+	// create task
+	createRes := call(t, srv, "task", map[string]any{
+		"action":    "create",
+		"ticket_id": ticket.ID,
+		"title":     "Do the thing",
+	})
+	var task models.Task
+	decodeResult(t, createRes, &task)
+	assert.Equal(t, "Do the thing", task.Title)
+	assert.False(t, task.Done)
+
+	// list
+	listRes := call(t, srv, "task", map[string]any{"action": "list", "ticket_id": ticket.ID})
+	var tasks []models.Task
+	decodeResult(t, listRes, &tasks)
+	require.Len(t, tasks, 1)
+
+	// update (mark done)
+	updRes := call(t, srv, "task", map[string]any{
+		"action": "update",
+		"id":     task.ID,
+		"done":   true,
+	})
+	var updTask models.Task
+	decodeResult(t, updRes, &updTask)
+	assert.True(t, updTask.Done)
+
+	// delete
+	delRes := call(t, srv, "task", map[string]any{"action": "delete", "id": task.ID})
+	assert.False(t, delRes.IsError)
+
+	listRes2 := call(t, srv, "task", map[string]any{"action": "list", "ticket_id": ticket.ID})
+	var tasks2 []models.Task
+	decodeResult(t, listRes2, &tasks2)
+	assert.Empty(t, tasks2)
+}
+
+// TestTicketHistory exercises the ticket_history tool.
+func TestTicketHistory(t *testing.T) {
+	srv := setupServer(t)
+
+	boardRes := call(t, srv, "board", map[string]any{"action": "create", "name": "B"})
+	var board models.Board
+	decodeResult(t, boardRes, &board)
+
+	ticketRes := call(t, srv, "ticket", map[string]any{
+		"action":   "create",
+		"board_id": board.ID,
+		"title":    "T",
+	})
+	var ticket models.Ticket
+	decodeResult(t, ticketRes, &ticket)
+
+	histRes := call(t, srv, "ticket_history", map[string]any{"ticket_id": ticket.ID})
+	var events []models.TicketEvent
+	decodeResult(t, histRes, &events)
+	// At minimum a "created" event should exist
+	require.NotEmpty(t, events)
 }
