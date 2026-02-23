@@ -18,8 +18,8 @@ func registerTools(srv *server.MCPServer, s store.Store) {
 	// -------------------------------------------------------------------------
 	srv.AddTool(
 		mcpgo.NewTool("board",
-			mcpgo.WithDescription("Manage boards. action: list, get, create, update, delete, summary"),
-			mcpgo.WithString("action", mcpgo.Required(), mcpgo.Description("list|get|create|update|delete|summary")),
+			mcpgo.WithDescription("Manage boards. action: list, get, create, update, delete, summary, context, ready"),
+			mcpgo.WithString("action", mcpgo.Required(), mcpgo.Description("list|get|create|update|delete|summary|context|ready")),
 			mcpgo.WithString("id", mcpgo.Description("Board ID (get/update/delete/summary)")),
 			mcpgo.WithString("name", mcpgo.Description("Board name (create/update)")),
 			mcpgo.WithString("description", mcpgo.Description("Board description (create/update)")),
@@ -103,6 +103,33 @@ func registerTools(srv *server.MCPServer, s store.Store) {
 					return mcpgo.NewToolResultError(err.Error()), nil
 				}
 				return jsonResult(summary)
+
+			case "context":
+				// Returns the full board snapshot: board metadata + epics + all tickets
+				// with embedded tasks and relations. Use this instead of multiple list
+				// calls when you need a complete picture of the board.
+				id := getString("id")
+				if id == "" {
+					return mcpgo.NewToolResultError("id required"), nil
+				}
+				bctx, err := s.BoardContext(ctx, id)
+				if err != nil {
+					return mcpgo.NewToolResultError(err.Error()), nil
+				}
+				return jsonResult(bctx)
+
+			case "ready":
+				// Returns unblocked todo tickets ordered by priority descending.
+				// Use this to get an agent's immediate work queue.
+				id := getString("id")
+				if id == "" {
+					return mcpgo.NewToolResultError("id required"), nil
+				}
+				tickets, err := s.ReadyTickets(ctx, id)
+				if err != nil {
+					return mcpgo.NewToolResultError(err.Error()), nil
+				}
+				return jsonResult(tickets)
 
 			default:
 				return mcpgo.NewToolResultError(fmt.Sprintf("unknown action %q", action)), nil

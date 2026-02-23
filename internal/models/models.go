@@ -69,6 +69,22 @@ type EpicSummary struct {
 	TicketCount int    `json:"ticket_count"`
 }
 
+// TicketContext embeds a Ticket with its associated tasks and relations,
+// used in the board context snapshot.
+type TicketContext struct {
+	Ticket
+	Tasks     []Task           `json:"tasks"`
+	Relations []TicketRelation `json:"relations"`
+}
+
+// BoardContext is a complete machine-readable snapshot of a board in one shot.
+// It is designed for LLM agents that need full context without multiple round-trips.
+type BoardContext struct {
+	Board   Board           `json:"board"`
+	Epics   []Epic          `json:"epics"`
+	Tickets []TicketContext `json:"tickets"`
+}
+
 type TicketFilter struct {
 	Status    *Status
 	Priority  *Priority

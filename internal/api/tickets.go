@@ -374,3 +374,33 @@ func DeleteTicket(s store.Store, hub *Hub) http.HandlerFunc {
 		w.WriteHeader(http.StatusNoContent)
 	}
 }
+
+// ReadyTickets returns unblocked todo tickets ordered by priority.
+// GET /api/v1/boards/{id}/ready
+func ReadyTickets(s store.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		boardID := chi.URLParam(r, "id")
+		tickets, err := s.ReadyTickets(r.Context(), boardID)
+		if err != nil {
+			http.Error(w, `{"error": "internal server error"}`, http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(tickets)
+	}
+}
+
+// GetBoardContext returns a full board snapshot for LLM agents.
+// GET /api/v1/boards/{id}/context
+func GetBoardContext(s store.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		boardID := chi.URLParam(r, "id")
+		bctx, err := s.BoardContext(r.Context(), boardID)
+		if err != nil {
+			http.Error(w, `{"error": "internal server error"}`, http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(bctx)
+	}
+}

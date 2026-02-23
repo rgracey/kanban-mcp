@@ -68,6 +68,8 @@ func NewAPIRouter(r chi.Router, s store.Store, hub *Hub) {
 			r.Put("/", UpdateBoard(s))
 			r.Delete("/", DeleteBoard(s))
 			r.Get("/summary", GetBoardSummary(s))
+			r.Get("/context", GetBoardContext(s))
+			r.Get("/ready", ReadyTickets(s))
 			r.Get("/epics", ListEpics(s))
 			r.Post("/epics", CreateEpic(s))
 			r.Get("/tickets", ListTickets(s))

@@ -53,4 +53,12 @@ type Store interface {
 
 	// Bulk operations
 	BulkCreateTickets(ctx context.Context, boardID string, tickets []models.Ticket) ([]models.Ticket, error)
+
+	// Agent-oriented helpers
+	// ReadyTickets returns unblocked todo tickets for a board ordered by priority descending.
+	// A ticket is "ready" if it has no incoming blocking relations (i.e. nothing blocks it).
+	ReadyTickets(ctx context.Context, boardID string) ([]models.Ticket, error)
+	// BoardContext returns a full snapshot of a board: board metadata, epics, and all tickets
+	// with their tasks and relations embedded. Designed for LLM agents needing full context.
+	BoardContext(ctx context.Context, boardID string) (models.BoardContext, error)
 }
