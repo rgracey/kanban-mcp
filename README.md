@@ -161,7 +161,7 @@ go test ./...
 The compiled frontend (`frontend/dist/`) is committed to the repository so that `go build` works without Node. If you change frontend source files, rebuild and commit the dist:
 
 ```sh
-cd frontend && npm run build
+cd frontend && npm run build # OR go generate ./frontend
 git add frontend/dist/
 ```
 

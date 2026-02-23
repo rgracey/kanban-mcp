@@ -5,6 +5,8 @@ import (
 	"io/fs"
 )
 
+//go:generate bash -c "npm ci && npm run build"
+
 //go:embed all:dist
 var FS embed.FS
 
