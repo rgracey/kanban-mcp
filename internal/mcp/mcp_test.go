@@ -364,3 +364,53 @@ func TestTicketHistory(t *testing.T) {
 	// At minimum a "created" event should exist
 	require.NotEmpty(t, events)
 }
+
+// TestTicketGetIncludeTasksAndRelations verifies include_tasks and include_relations on ticket get.
+func TestTicketGetIncludeTasksAndRelations(t *testing.T) {
+	srv := setupServer(t)
+
+	boardRes := call(t, srv, "board", map[string]any{"action": "create", "name": "B"})
+	var board models.Board
+	decodeResult(t, boardRes, &board)
+
+	t1Res := call(t, srv, "ticket", map[string]any{"action": "create", "board_id": board.ID, "title": "T1"})
+	var t1 models.Ticket
+	decodeResult(t, t1Res, &t1)
+
+	t2Res := call(t, srv, "ticket", map[string]any{"action": "create", "board_id": board.ID, "title": "T2"})
+	var t2 models.Ticket
+	decodeResult(t, t2Res, &t2)
+
+	// add a task to t1
+	call(t, srv, "task", map[string]any{"action": "create", "ticket_id": t1.ID, "title": "subtask"})
+
+	// add a relation: t1 blocks t2
+	call(t, srv, "relation", map[string]any{"action": "add", "ticket_id": t1.ID, "to_ticket_id": t2.ID})
+
+	// get without flags — should have no tasks or relations embedded
+	baseRes := call(t, srv, "ticket", map[string]any{"action": "get", "id": t1.ID})
+	var baseEnv struct {
+		Tasks     []models.Task           `json:"tasks"`
+		Relations []models.TicketRelation `json:"relations"`
+	}
+	decodeResult(t, baseRes, &baseEnv)
+	assert.Nil(t, baseEnv.Tasks)
+	assert.Nil(t, baseEnv.Relations)
+
+	// get with include_tasks=true and include_relations=true
+	fullRes := call(t, srv, "ticket", map[string]any{
+		"action":            "get",
+		"id":                t1.ID,
+		"include_tasks":     true,
+		"include_relations": true,
+	})
+	var fullEnv struct {
+		Tasks     []models.Task           `json:"tasks"`
+		Relations []models.TicketRelation `json:"relations"`
+	}
+	decodeResult(t, fullRes, &fullEnv)
+	require.Len(t, fullEnv.Tasks, 1)
+	assert.Equal(t, "subtask", fullEnv.Tasks[0].Title)
+	require.Len(t, fullEnv.Relations, 1)
+	assert.Equal(t, t2.ID, fullEnv.Relations[0].ToTicketID)
+}
