@@ -315,10 +315,8 @@ func registerTools(srv *server.MCPServer, s store.Store) {
 					History []models.TicketEvent `json:"history,omitempty"`
 				}
 				out := envelope{Ticket: ticket}
-				// accept both include_notes (new) and include_comments (legacy)
 				includeNotes, _ := args["include_notes"].(bool)
-				includeLegacy, _ := args["include_comments"].(bool)
-				if includeNotes || includeLegacy {
+				if includeNotes {
 					notes, err := s.ListNotes(ctx, id)
 					if err != nil {
 						return mcpgo.NewToolResultError(err.Error()), nil
