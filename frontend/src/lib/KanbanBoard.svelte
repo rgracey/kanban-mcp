@@ -1,9 +1,10 @@
 <script lang="ts">
 	import { onDestroy } from 'svelte';
 	import { toast } from 'svelte-sonner';
-	import type { Ticket, Epic, Status } from './types.js';
+	import type { Ticket, Epic, Status, TicketFilter } from './types.js';
 	import { listTickets, listEpics, updateTicket } from './api.js';
 	import EpicFilter from './EpicFilter.svelte';
+	import FilterBar from './FilterBar.svelte';
 	import KanbanColumn from './KanbanColumn.svelte';
 	import CreateTicket from './modals/CreateTicket.svelte';
 	import CreateEpic from './modals/CreateEpic.svelte';
@@ -18,6 +19,7 @@
 	let tickets = $state<Ticket[]>([]);
 	let epics = $state<Epic[]>([]);
 	let selectedEpicId = $state<string | null>(null);
+	let ticketFilter = $state<TicketFilter>({});
 	let loading = $state(true);
 	let error = $state('');
 	let showCreateTicket = $state(false);
@@ -34,7 +36,14 @@
 		loading = true;
 		error = '';
 		try {
-			[tickets, epics] = await Promise.all([listTickets(boardId), listEpics(boardId)]);
+			const filter: TicketFilter = {
+				...ticketFilter,
+				...(selectedEpicId ? { epic_id: selectedEpicId } : {})
+			};
+			[tickets, epics] = await Promise.all([
+				listTickets(boardId, filter),
+				listEpics(boardId)
+			]);
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to load board';
 			toast.error(error);
@@ -43,8 +52,19 @@
 		}
 	}
 
+	// Reset filters and epic selection when board switches
 	$effect(() => {
-		boardId;
+		// Tracking boardId — reset local filter state when board changes
+		void boardId;
+		ticketFilter = {};
+		selectedEpicId = null;
+	});
+
+	$effect(() => {
+		// Re-fetch whenever boardId, selectedEpicId, or ticketFilter changes.
+		void boardId;
+		void ticketFilter;
+		void selectedEpicId;
 		load();
 	});
 
@@ -79,12 +99,9 @@
 		es = null;
 	});
 
-	const filteredTickets = $derived(
-		selectedEpicId ? tickets.filter((t) => t.epic_id === selectedEpicId) : tickets
-	);
-
+	// Tickets are already filtered server-side; just split by status for columns
 	function ticketsForStatus(status: Status): Ticket[] {
-		return filteredTickets.filter((t) => t.status === status);
+		return tickets.filter((t) => t.status === status);
 	}
 
 	function handleConsider(status: Status, items: Ticket[]) {
@@ -145,7 +162,7 @@
 </script>
 
 <div class="flex h-full flex-col gap-4">
-	<!-- Toolbar -->
+	<!-- Toolbar row 1: epic filter + action buttons -->
 	<div class="flex flex-wrap items-center justify-between gap-3">
 		<!-- Left: epic filter -->
 		<div class="flex min-w-0 items-center gap-2">
@@ -186,6 +203,9 @@
 			</button>
 		</div>
 	</div>
+
+	<!-- Toolbar row 2: filter/search bar -->
+	<FilterBar filter={ticketFilter} onchange={(f) => (ticketFilter = f)} />
 
 	{#if loading}
 		<div class="flex h-64 items-center justify-center text-sm text-gray-400">Loading...</div>

@@ -96,9 +96,15 @@ export interface BoardSummary {
 	epics: { id: string; title: string; ticket_count: number }[];
 }
 
+export type SortBy = 'priority' | 'created_at';
+export type SortOrder = 'asc' | 'desc';
+
 export interface TicketFilter {
 	status?: Status;
 	priority?: Priority;
 	epic_id?: string;
+	assignee?: string;
 	q?: string;
+	sort_by?: SortBy;
+	sort_order?: SortOrder;
 }

@@ -9,7 +9,9 @@ import type {
 	BoardSummary,
 	TicketFilter,
 	Status,
-	Priority
+	Priority,
+	SortBy,
+	SortOrder
 } from './types.js';
 
 const BASE = '/api/v1';
@@ -55,7 +57,10 @@ export const listTickets = (boardId: string, filter?: TicketFilter) => {
 	if (filter?.status) params.set('status', filter.status);
 	if (filter?.priority) params.set('priority', filter.priority);
 	if (filter?.epic_id) params.set('epic_id', filter.epic_id);
+	if (filter?.assignee) params.set('assignee', filter.assignee);
 	if (filter?.q) params.set('q', filter.q);
+	if (filter?.sort_by) params.set('sort_by', filter.sort_by);
+	if (filter?.sort_order) params.set('sort_order', filter.sort_order);
 	const qs = params.size ? '?' + params.toString() : '';
 	return request<Ticket[]>(`/boards/${boardId}/tickets${qs}`);
 };
