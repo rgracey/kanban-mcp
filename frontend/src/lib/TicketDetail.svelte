@@ -67,6 +67,7 @@
 
   // --- relation state ---
   let newRelationId = $state("");
+  let newRelationDirection = $state<"blocks" | "blocked_by">("blocks");
   let addingRelation = $state(false);
 
   // Tickets on this board that can be added as a relation:
@@ -234,15 +235,17 @@
 
   // --- relations ---
   async function submitRelation() {
-    const toId = newRelationId.trim();
-    if (!toId || !ticket) return;
-    if (toId === ticket.id) {
-      toast.error("A ticket cannot block itself");
-      return;
-    }
+    const otherId = newRelationId.trim();
+    if (!otherId || !ticket) return;
     addingRelation = true;
     try {
-      const rel = await addRelation(ticket.id, toId);
+      // "blocks"     → this ticket is the blocker (from = this, to = other)
+      // "blocked_by" → this ticket is the blockee (from = other, to = this)
+      const [fromId, toId] =
+        newRelationDirection === "blocks"
+          ? [ticket.id, otherId]
+          : [otherId, ticket.id];
+      const rel = await addRelation(fromId, toId);
       relations = [...relations, rel];
       newRelationId = "";
       toast.success("Relation added");
@@ -710,16 +713,11 @@
                 <span class="flex-1 text-gray-700 dark:text-gray-300 truncate">
                   {isBlocking ? rel.to_title : rel.from_title}
                 </span>
-                <span class="text-xs text-gray-400 dark:text-gray-600 font-mono truncate max-w-[6rem]">
-                  {isBlocking ? rel.to_ticket_id.slice(0, 8) : rel.from_ticket_id.slice(0, 8)}
-                </span>
-                {#if isBlocking}
-                  <button
-                    class="text-gray-300 dark:text-gray-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity text-xs shrink-0"
-                    onclick={() => removeRelation(rel)}
-                    aria-label="Remove relation">&times;</button
-                  >
-                {/if}
+                <button
+                  class="text-gray-300 dark:text-gray-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity text-xs shrink-0"
+                  onclick={() => removeRelation(rel)}
+                  aria-label="Remove relation">&times;</button
+                >
               </li>
             {/each}
           </ul>
@@ -730,12 +728,19 @@
         <!-- Add relation -->
         <div class="flex gap-2">
           <select
+            class="shrink-0 border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            bind:value={newRelationDirection}
+          >
+            <option value="blocks">blocks</option>
+            <option value="blocked_by">blocked by</option>
+          </select>
+          <select
             class="flex-1 border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
             bind:value={newRelationId}
             disabled={selectableTickets.length === 0}
           >
             <option value="">
-              {selectableTickets.length === 0 ? 'No other tickets on this board' : 'Select a ticket to block…'}
+              {selectableTickets.length === 0 ? 'No other tickets' : 'Select a ticket…'}
             </option>
             {#each selectableTickets as t (t.id)}
               <option value={t.id}>{t.title}</option>
