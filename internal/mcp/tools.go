@@ -23,6 +23,8 @@ func registerTools(srv *server.MCPServer, s store.Store) {
 			mcpgo.WithString("id", mcpgo.Description("Board ID (get/update/delete/summary)")),
 			mcpgo.WithString("name", mcpgo.Description("Board name (create/update)")),
 			mcpgo.WithString("description", mcpgo.Description("Board description (create/update)")),
+			mcpgo.WithString("filter_status", mcpgo.Description("Filter tickets by status for context action (todo|in_progress|done)")),
+			mcpgo.WithBoolean("omit_descriptions", mcpgo.Description("Omit ticket description text in context response to reduce size")),
 		),
 		func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 			action, err := req.RequireString("action")
@@ -108,6 +110,7 @@ func registerTools(srv *server.MCPServer, s store.Store) {
 				// Returns the full board snapshot: board metadata + epics + all tickets
 				// with embedded tasks and relations. Use this instead of multiple list
 				// calls when you need a complete picture of the board.
+				// filter_status and omit_descriptions can reduce token usage on large boards.
 				id := getString("id")
 				if id == "" {
 					return mcpgo.NewToolResultError("id required"), nil
@@ -115,6 +118,22 @@ func registerTools(srv *server.MCPServer, s store.Store) {
 				bctx, err := s.BoardContext(ctx, id)
 				if err != nil {
 					return mcpgo.NewToolResultError(err.Error()), nil
+				}
+				// Optional: filter tickets by status
+				if fs := getString("filter_status"); fs != "" {
+					filtered := bctx.Tickets[:0]
+					for _, tc := range bctx.Tickets {
+						if string(tc.Status) == fs {
+							filtered = append(filtered, tc)
+						}
+					}
+					bctx.Tickets = filtered
+				}
+				// Optional: strip descriptions to reduce response size
+				if v, _ := args["omit_descriptions"].(bool); v {
+					for i := range bctx.Tickets {
+						bctx.Tickets[i].Description = ""
+					}
 				}
 				return jsonResult(bctx)
 
