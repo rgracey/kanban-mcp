@@ -8,9 +8,9 @@ It ships as a single Go binary with no external dependencies: SQLite is embedded
 
 ## What it does
 
-**For humans** — a visual kanban board accessible in any browser. Boards, epics, tickets with markdown descriptions, checklists, comments, assignees, priority levels, and a per-ticket audit history showing every change over time.
+**For humans** — a visual kanban board accessible in any browser. Boards, epics, tickets with markdown descriptions, checklists, notes, assignees, priority levels, and a per-ticket audit history showing every change over time.
 
-**For AI agents** — a full [Model Context Protocol](https://modelcontextprotocol.io) (MCP) server. Claude (and any other MCP-compatible client) can create boards, manage tickets, write comments, check off tasks, and inspect history — all through natural conversation. The same data store backs both interfaces, so changes made by an agent are immediately visible in the UI, and vice versa.
+**For AI agents** — a full [Model Context Protocol](https://modelcontextprotocol.io) (MCP) server. Claude (and any other MCP-compatible client) can create boards, manage tickets, write notes, check off tasks, and inspect history — all through natural conversation. The same data store backs both interfaces, so changes made by an agent are immediately visible in the UI, and vice versa.
 
 ---
 
@@ -24,10 +24,10 @@ Most project management tools are either too heavy to self-host or have no machi
 
 - **Boards, epics, and tickets** with status (`todo` / `in progress` / `done`) and priority (`low` / `medium` / `high` / `critical`)
 - **Checklists** — per-ticket task lists with progress tracking
-- **Comments** with edit support
+- **Notes** — agent scratchpad notes on tickets, with edit support
 - **Assignees** — free-text assignee field per ticket
 - **Markdown** rendering in ticket descriptions
-- **Audit history** — every create, edit, move, comment, and task change is recorded and shown in a timeline on the ticket
+- **Audit history** — every create, edit, move, note, and task change is recorded and shown in a timeline on the ticket
 - **Real-time updates** — the UI reacts to changes via Server-Sent Events (no polling, no refresh required)
 - **Dark mode** — user toggle, persisted in localStorage
 - **MCP server** — 6 action-dispatched tools covering the full data model (see [MCP tools](#mcp-tools) below)
@@ -100,14 +100,14 @@ kanban-mcp --mcp-transport both   # HTTP + stdio simultaneously
 
 All tools use an action-dispatch pattern: one tool per resource, with an `action` parameter selecting the operation.
 
-| Tool             | Actions                                                | Key parameters                                                                                                                                   |
-| ---------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `board`          | `list`, `get`, `create`, `update`, `delete`, `summary` | `id`, `name`, `description`                                                                                                                      |
-| `epic`           | `list`, `get`, `create`, `update`, `delete`            | `id`, `board_id`, `title`, `description`                                                                                                         |
-| `ticket`         | `list`, `get`, `create`, `update`, `delete`, `move`    | `id`, `board_id`, `title`, `description`, `status`, `priority`, `epic_id`, `assignee`, filter/sort params, `include_comments`, `include_history` |
-| `task`           | `list`, `create`, `update`, `delete`                   | `id`, `ticket_id`, `title`, `done`                                                                                                               |
-| `comment`        | `list`, `add`, `update`, `delete`                      | `id`, `ticket_id`, `body`                                                                                                                        |
-| `ticket_history` | _(single action)_                                      | `ticket_id`                                                                                                                                      |
+| Tool       | Actions                                                                  | Key parameters                                                                                                                                  |
+| ---------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `board`    | `list`, `get`, `create`, `update`, `delete`, `summary`, `context`, `ready` | `id`, `name`, `description`                                                                                                                   |
+| `epic`     | `list`, `get`, `create`, `update`, `delete`                              | `id`, `board_id`, `title`, `description`                                                                                                        |
+| `ticket`   | `list`, `get`, `create`, `bulk_create`, `update`, `delete`, `move`, `history` | `id`, `board_id`, `title`, `description`, `status`, `priority`, `epic_id`, `assignee`, filter/sort params, `include_notes`, `include_history` |
+| `task`     | `list`, `create`, `update`, `delete`                                     | `id`, `ticket_id`, `title`, `done`                                                                                                              |
+| `note`     | `list`, `add`, `update`, `delete`                                        | `id`, `ticket_id`, `body`                                                                                                                       |
+| `relation` | `list`, `add`, `delete`                                                  | `ticket_id`, `to_ticket_id`                                                                                                                     |
 
 Example — ask Claude: _"Create a board called 'Backend Rewrite', add an epic for authentication, and create three tickets under it."_
 
@@ -186,7 +186,7 @@ Base path: `/api/v1`. All responses are JSON. All IDs are UUID v4. Timestamps ar
 | `POST`   | `/api/v1/boards`             | Create a board (`name` required)                      |
 | `GET`    | `/api/v1/boards/:id`         | Get a board                                           |
 | `PUT`    | `/api/v1/boards/:id`         | Update a board (partial)                              |
-| `DELETE` | `/api/v1/boards/:id`         | Delete a board (cascades to epics, tickets, comments) |
+| `DELETE` | `/api/v1/boards/:id`         | Delete a board (cascades to epics, tickets, notes) |
 | `GET`    | `/api/v1/boards/:id/summary` | Ticket counts by status + epic breakdown              |
 
 </details>
@@ -213,7 +213,7 @@ Base path: `/api/v1`. All responses are JSON. All IDs are UUID v4. Timestamps ar
 | `POST`   | `/api/v1/boards/:id/tickets` | Create a ticket (`title` required; defaults: `status=todo`, `priority=medium`)       |
 | `GET`    | `/api/v1/tickets/:id`        | Get a ticket                                                                         |
 | `PUT`    | `/api/v1/tickets/:id`        | Update a ticket (any subset of fields; `epic_id: null` clears the epic)              |
-| `DELETE` | `/api/v1/tickets/:id`        | Delete a ticket (cascades to comments and tasks)                                     |
+| `DELETE` | `/api/v1/tickets/:id`        | Delete a ticket (cascades to notes and tasks)                                        |
 
 </details>
 
@@ -230,14 +230,15 @@ Base path: `/api/v1`. All responses are JSON. All IDs are UUID v4. Timestamps ar
 </details>
 
 <details>
-<summary>Comments</summary>
+<summary>Notes</summary>
 
-| Method   | Path                           | Description                                 |
-| -------- | ------------------------------ | ------------------------------------------- |
-| `GET`    | `/api/v1/tickets/:id/comments` | List comments (ordered by `created_at` asc) |
-| `POST`   | `/api/v1/tickets/:id/comments` | Add a comment (`body` required)             |
-| `PUT`    | `/api/v1/comments/:id`         | Update a comment (`body` required)          |
-| `DELETE` | `/api/v1/comments/:id`         | Delete a comment                            |
+| Method   | Path                        | Description                              |
+| -------- | --------------------------- | ---------------------------------------- |
+| `GET`    | `/api/v1/tickets/:id/notes` | List notes (ordered by `created_at` asc) |
+| `POST`   | `/api/v1/tickets/:id/notes` | Add a note (`body` required)             |
+| `GET`    | `/api/v1/notes/:id`         | Get a note                               |
+| `PUT`    | `/api/v1/notes/:id`         | Update a note (`body` required)          |
+| `DELETE` | `/api/v1/notes/:id`         | Delete a note                            |
 
 </details>
 
