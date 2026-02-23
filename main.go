@@ -19,6 +19,9 @@ import (
 	"github.com/rgracey/kanban-mcp/internal/store"
 )
 
+// version is set at build time via -ldflags="-X main.version=<tag>".
+var version = "dev"
+
 func main() {
 	cfg := config.Load()
 
@@ -37,6 +40,7 @@ func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level}))
 	slog.SetDefault(logger)
 
+	slog.Info("starting kanban-mcp", "version", version)
 	slog.Debug("config loaded", "config", cfg)
 
 	// Open database with migrations
