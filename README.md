@@ -76,6 +76,19 @@ go build -o kanban-mcp .
 
 The web UI is available at `http://localhost:8080`.
 
+### Configuration
+
+Flags take precedence over environment variables.
+
+| Flag              | Env var                | Default     | Description                      |
+| ----------------- | ---------------------- | ----------- | -------------------------------- |
+| `--port`          | `KANBAN_PORT`          | `8080`      | HTTP listen port                 |
+| `--db`            | `KANBAN_DB`            | `kanban.db` | Path to the SQLite database file |
+| `--mcp-transport` | `KANBAN_MCP_TRANSPORT` | `stdio`     | `stdio`, `http`, or `both`       |
+| `--log-level`     | `KANBAN_LOG_LEVEL`     | `info`      | `debug`, `info`, `warn`, `error` |
+
+The database file is created automatically on first run. Migrations are applied automatically on startup.
+
 ---
 
 ## MCP setup
@@ -149,21 +162,6 @@ Or call a tool directly:
   "epic_id": "epic-uuid-here"
 }
 ```
-
----
-
-## Configuration
-
-Flags take precedence over environment variables.
-
-| Flag              | Env var                | Default     | Description                      |
-| ----------------- | ---------------------- | ----------- | -------------------------------- |
-| `--port`          | `KANBAN_PORT`          | `8080`      | HTTP listen port                 |
-| `--db`            | `KANBAN_DB`            | `kanban.db` | Path to the SQLite database file |
-| `--mcp-transport` | `KANBAN_MCP_TRANSPORT` | `stdio`     | `stdio`, `http`, or `both`       |
-| `--log-level`     | `KANBAN_LOG_LEVEL`     | `info`      | `debug`, `info`, `warn`, `error` |
-
-The database file is created automatically on first run. Migrations are applied automatically on startup.
 
 ---
 
