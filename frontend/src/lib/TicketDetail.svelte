@@ -14,6 +14,7 @@
     updateTask,
     deleteTask,
     listTicketEvents,
+    listTickets,
     listRelations,
     addRelation,
     deleteRelation,
@@ -39,6 +40,7 @@
   let tasks = $state<Task[]>([]);
   let events = $state<TicketEvent[]>([]);
   let relations = $state<TicketRelation[]>([]);
+  let boardTickets = $state<Ticket[]>([]);
   let loading = $state(true);
   let loadError = $state("");
 
@@ -67,6 +69,16 @@
   let newRelationId = $state("");
   let addingRelation = $state(false);
 
+  // Tickets on this board that can be added as a relation:
+  // exclude the current ticket and any already related on either side.
+  const relatedIds = $derived(new Set([
+    ...relations.map((r) => r.from_ticket_id),
+    ...relations.map((r) => r.to_ticket_id),
+  ]));
+  const selectableTickets = $derived(
+    boardTickets.filter((t) => t.id !== ticketId && !relatedIds.has(t.id)),
+  );
+
   // --- comment state ---
   let newCommentBody = $state("");
   let addingComment = $state(false);
@@ -78,13 +90,14 @@
     loading = true;
     loadError = "";
     try {
-      const [t, e, c, tk, ev, rels] = await Promise.all([
+      const [t, e, c, tk, ev, rels, bt] = await Promise.all([
         getTicket(ticketId),
         listEpics(boardId),
         listComments(ticketId),
         listTasks(ticketId),
         listTicketEvents(ticketId),
         listRelations(ticketId),
+        listTickets(boardId),
       ]);
       ticket = t;
       epics = e;
@@ -92,6 +105,7 @@
       tasks = tk;
       events = ev;
       relations = rels;
+      boardTickets = bt;
       pendingTasks = [];
       // seed drafts — untrack so assignment doesn't loop
       draftTitle = untrack(() => t.title);
@@ -252,9 +266,7 @@
     }
   }
 
-  function onRelationKeydown(e: KeyboardEvent) {
-    if (e.key === "Enter") submitRelation();
-  }
+
 
   // --- comments ---
   async function submitComment() {
@@ -717,16 +729,22 @@
 
         <!-- Add relation -->
         <div class="flex gap-2">
-          <input
-            class="flex-1 border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
-            placeholder="Paste ticket ID to block…"
+          <select
+            class="flex-1 border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
             bind:value={newRelationId}
-            onkeydown={onRelationKeydown}
-          />
+            disabled={selectableTickets.length === 0}
+          >
+            <option value="">
+              {selectableTickets.length === 0 ? 'No other tickets on this board' : 'Select a ticket to block…'}
+            </option>
+            {#each selectableTickets as t (t.id)}
+              <option value={t.id}>{t.title}</option>
+            {/each}
+          </select>
           <button
             class="px-3 py-1.5 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 transition-colors"
             onclick={submitRelation}
-            disabled={addingRelation || !newRelationId.trim()}>Add</button
+            disabled={addingRelation || !newRelationId}>Add</button
           >
         </div>
       </div>
