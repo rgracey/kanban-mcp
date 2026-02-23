@@ -93,8 +93,8 @@ func NewAPIRouter(r chi.Router, s store.Store, hub *Hub) {
 			r.Get("/", GetTicket(s))
 			r.Put("/", UpdateTicket(s, hub))
 			r.Delete("/", DeleteTicket(s, hub))
-			r.Get("/comments", ListComments(s))
-			r.Post("/comments", CreateComment(s, hub))
+			r.Get("/notes", ListNotes(s))
+			r.Post("/notes", CreateNote(s, hub))
 			r.Get("/events", ListTicketEvents(s))
 			r.Get("/tasks", ListTasks(s))
 			r.Post("/tasks", CreateTask(s, hub))
@@ -112,12 +112,12 @@ func NewAPIRouter(r chi.Router, s store.Store, hub *Hub) {
 		})
 	})
 
-	// Comments (standalone routes for direct comment access)
-	r.Route("/comments", func(r chi.Router) {
+	// Notes (standalone routes for direct note access)
+	r.Route("/notes", func(r chi.Router) {
 		r.Route("/{id}", func(r chi.Router) {
-			r.Get("/", GetComment(s))
-			r.Put("/", UpdateComment(s))
-			r.Delete("/", DeleteComment(s))
+			r.Get("/", GetNote(s))
+			r.Put("/", UpdateNote(s))
+			r.Delete("/", DeleteNote(s))
 		})
 	})
 }

@@ -56,7 +56,7 @@ func TestAllToolsRegistered(t *testing.T) {
 		"epic",
 		"ticket",
 		"task",
-		"comment",
+		"note",
 		"ticket_history",
 		"relation",
 	}
@@ -208,8 +208,8 @@ func TestTicketWorkflow(t *testing.T) {
 	assert.False(t, delRes.IsError)
 }
 
-// TestCommentCRUD exercises comment tool actions.
-func TestCommentCRUD(t *testing.T) {
+// TestNoteCRUD exercises note tool actions.
+func TestNoteCRUD(t *testing.T) {
 	srv := setupServer(t)
 
 	boardRes := call(t, srv, "board", map[string]any{"action": "create", "name": "B"})
@@ -225,39 +225,39 @@ func TestCommentCRUD(t *testing.T) {
 	decodeResult(t, ticketRes, &ticket)
 
 	// add
-	addRes := call(t, srv, "comment", map[string]any{
+	addRes := call(t, srv, "note", map[string]any{
 		"action":    "add",
 		"ticket_id": ticket.ID,
-		"body":      "first comment",
+		"body":      "first note",
 	})
-	var comment models.Comment
-	decodeResult(t, addRes, &comment)
-	assert.Equal(t, "first comment", comment.Body)
+	var note models.Note
+	decodeResult(t, addRes, &note)
+	assert.Equal(t, "first note", note.Body)
 
 	// list
-	listRes := call(t, srv, "comment", map[string]any{"action": "list", "ticket_id": ticket.ID})
-	var comments []models.Comment
-	decodeResult(t, listRes, &comments)
-	require.Len(t, comments, 1)
+	listRes := call(t, srv, "note", map[string]any{"action": "list", "ticket_id": ticket.ID})
+	var notes []models.Note
+	decodeResult(t, listRes, &notes)
+	require.Len(t, notes, 1)
 
 	// update
-	updRes := call(t, srv, "comment", map[string]any{
+	updRes := call(t, srv, "note", map[string]any{
 		"action": "update",
-		"id":     comment.ID,
+		"id":     note.ID,
 		"body":   "edited",
 	})
-	var updComment models.Comment
-	decodeResult(t, updRes, &updComment)
-	assert.Equal(t, "edited", updComment.Body)
+	var updNote models.Note
+	decodeResult(t, updRes, &updNote)
+	assert.Equal(t, "edited", updNote.Body)
 
 	// delete
-	delRes := call(t, srv, "comment", map[string]any{"action": "delete", "id": comment.ID})
+	delRes := call(t, srv, "note", map[string]any{"action": "delete", "id": note.ID})
 	assert.False(t, delRes.IsError)
 
-	listRes2 := call(t, srv, "comment", map[string]any{"action": "list", "ticket_id": ticket.ID})
-	var comments2 []models.Comment
-	decodeResult(t, listRes2, &comments2)
-	assert.Empty(t, comments2)
+	listRes2 := call(t, srv, "note", map[string]any{"action": "list", "ticket_id": ticket.ID})
+	var notes2 []models.Note
+	decodeResult(t, listRes2, &notes2)
+	assert.Empty(t, notes2)
 }
 
 // TestTaskCRUD exercises task tool actions.

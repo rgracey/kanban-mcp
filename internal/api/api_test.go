@@ -227,12 +227,12 @@ func TestAPIBoards(t *testing.T) {
 		ticketData := readResponse(t, resp)
 		ticketID := ticketData["id"].(string)
 
-		// Create comment
-		commentReq := map[string]string{"body": "Comment to Delete"}
-		body, _ = json.Marshal(commentReq)
-		resp = makeRequest(t, server, "POST", "/api/v1/tickets/"+ticketID+"/comments", body)
-		commentData := readResponse(t, resp)
-		commentID := commentData["id"].(string)
+		// Create note
+		noteReq := map[string]string{"body": "Note to Delete"}
+		body, _ = json.Marshal(noteReq)
+		resp = makeRequest(t, server, "POST", "/api/v1/tickets/"+ticketID+"/notes", body)
+		noteData := readResponse(t, resp)
+		noteID := noteData["id"].(string)
 
 		// Delete the board
 		resp = makeRequest(t, server, "DELETE", "/api/v1/boards/"+boardID, nil)
@@ -246,8 +246,8 @@ func TestAPIBoards(t *testing.T) {
 		resp = makeRequest(t, server, "GET", "/api/v1/tickets/"+ticketID, nil)
 		assert.Equal(t, http.StatusNotFound, resp.StatusCode)
 
-		// Verify comment is gone (cascade delete)
-		resp = makeRequest(t, server, "GET", "/api/v1/comments/"+commentID, nil)
+		// Verify note is gone (cascade delete)
+		resp = makeRequest(t, server, "GET", "/api/v1/notes/"+noteID, nil)
 		assert.Equal(t, http.StatusNotFound, resp.StatusCode)
 	})
 
@@ -677,12 +677,12 @@ func TestAPITickets(t *testing.T) {
 		data := readResponse(t, resp)
 		ticketID := data["id"].(string)
 
-		// Create a comment on this ticket
-		commentReq := map[string]string{"body": "Comment to Delete"}
-		body, _ = json.Marshal(commentReq)
-		resp = makeRequest(t, server, "POST", "/api/v1/tickets/"+ticketID+"/comments", body)
-		commentData := readResponse(t, resp)
-		commentID := commentData["id"].(string)
+		// Create a note on this ticket
+		noteReq := map[string]string{"body": "Note to Delete"}
+		body, _ = json.Marshal(noteReq)
+		resp = makeRequest(t, server, "POST", "/api/v1/tickets/"+ticketID+"/notes", body)
+		noteData := readResponse(t, resp)
+		noteID := noteData["id"].(string)
 
 		// Delete the ticket
 		resp = makeRequest(t, server, "DELETE", "/api/v1/tickets/"+ticketID, nil)
@@ -692,8 +692,8 @@ func TestAPITickets(t *testing.T) {
 		resp = makeRequest(t, server, "GET", "/api/v1/tickets/"+ticketID, nil)
 		assert.Equal(t, http.StatusNotFound, resp.StatusCode)
 
-		// Verify comment is gone (cascade delete)
-		resp = makeRequest(t, server, "GET", "/api/v1/comments/"+commentID, nil)
+		// Verify note is gone (cascade delete)
+		resp = makeRequest(t, server, "GET", "/api/v1/notes/"+noteID, nil)
 		assert.Equal(t, http.StatusNotFound, resp.StatusCode)
 	})
 
@@ -706,19 +706,19 @@ func TestAPITickets(t *testing.T) {
 	})
 }
 
-// TestAPIComments tests all comment endpoints
-func TestAPIComments(t *testing.T) {
+// TestAPINotes tests all note endpoints
+func TestAPINotes(t *testing.T) {
 	server, _ := setupAPITest(t)
 
 	// First create a board and ticket
-	reqBody := map[string]string{"name": "Comment Board"}
+	reqBody := map[string]string{"name": "Note Board"}
 	body, _ := json.Marshal(reqBody)
 	resp := makeRequest(t, server, "POST", "/api/v1/boards", body)
 	boardData := readResponse(t, resp)
 	boardID := boardData["id"].(string)
 
 	ticketReq := map[string]string{
-		"title":    "Comment Test Ticket",
+		"title":    "Note Test Ticket",
 		"status":   "todo",
 		"priority": "medium",
 	}
@@ -727,103 +727,103 @@ func TestAPIComments(t *testing.T) {
 	ticketData := readResponse(t, resp)
 	ticketID := ticketData["id"].(string)
 
-	// Test POST /tickets/{id}/comments - create comment
-	t.Run("CreateComment", func(t *testing.T) {
-		reqBody := map[string]string{"body": "Test Comment"}
+	// Test POST /tickets/{id}/notes - create note
+	t.Run("CreateNote", func(t *testing.T) {
+		reqBody := map[string]string{"body": "Test Note"}
 		body, _ := json.Marshal(reqBody)
-		resp := makeRequest(t, server, "POST", "/api/v1/tickets/"+ticketID+"/comments", body)
+		resp := makeRequest(t, server, "POST", "/api/v1/tickets/"+ticketID+"/notes", body)
 
 		assert.Equal(t, http.StatusCreated, resp.StatusCode)
 		data := readResponse(t, resp)
 
 		assert.NotEmpty(t, data["id"])
 		assert.Equal(t, ticketID, data["ticket_id"])
-		assert.Equal(t, "Test Comment", data["body"])
+		assert.Equal(t, "Test Note", data["body"])
 		assert.NotEmpty(t, data["created_at"])
 		assert.NotEmpty(t, data["updated_at"])
 	})
 
-	// Test POST /tickets/{id}/comments - validation: missing body
-	t.Run("CreateComment_ValidationError", func(t *testing.T) {
+	// Test POST /tickets/{id}/notes - validation: missing body
+	t.Run("CreateNote_ValidationError", func(t *testing.T) {
 		reqBody := map[string]string{}
 		body, _ = json.Marshal(reqBody)
-		resp := makeRequest(t, server, "POST", "/api/v1/tickets/"+ticketID+"/comments", body)
+		resp := makeRequest(t, server, "POST", "/api/v1/tickets/"+ticketID+"/notes", body)
 
 		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 		data := readResponse(t, resp)
 		assert.Contains(t, data["error"], "body is required")
 	})
 
-	// Test POST /tickets/{id}/comments - validation: empty body
-	t.Run("CreateComment_EmptyBody", func(t *testing.T) {
+	// Test POST /tickets/{id}/notes - validation: empty body
+	t.Run("CreateNote_EmptyBody", func(t *testing.T) {
 		reqBody := map[string]string{"body": ""}
 		body, _ = json.Marshal(reqBody)
-		resp := makeRequest(t, server, "POST", "/api/v1/tickets/"+ticketID+"/comments", body)
+		resp := makeRequest(t, server, "POST", "/api/v1/tickets/"+ticketID+"/notes", body)
 
 		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 		data := readResponse(t, resp)
 		assert.Contains(t, data["error"], "body is required")
 	})
 
-	// Test GET /tickets/{id}/comments - list comments
-	t.Run("ListComments", func(t *testing.T) {
-		resp := makeRequest(t, server, "GET", "/api/v1/tickets/"+ticketID+"/comments", nil)
+	// Test GET /tickets/{id}/notes - list notes
+	t.Run("ListNotes", func(t *testing.T) {
+		resp := makeRequest(t, server, "GET", "/api/v1/tickets/"+ticketID+"/notes", nil)
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 
 		data := readResponseList(t, resp)
 		assert.GreaterOrEqual(t, len(data), 1)
 	})
 
-	// Test PUT /comments/{id} - update comment
-	t.Run("UpdateComment", func(t *testing.T) {
-		// Create a comment first
-		reqBody := map[string]string{"body": "Original Comment"}
+	// Test PUT /notes/{id} - update note
+	t.Run("UpdateNote", func(t *testing.T) {
+		// Create a note first
+		reqBody := map[string]string{"body": "Original Note"}
 		body, _ = json.Marshal(reqBody)
-		resp := makeRequest(t, server, "POST", "/api/v1/tickets/"+ticketID+"/comments", body)
+		resp := makeRequest(t, server, "POST", "/api/v1/tickets/"+ticketID+"/notes", body)
 		data := readResponse(t, resp)
-		commentID := data["id"].(string)
+		noteID := data["id"].(string)
 
 		// Update it
-		reqBody = map[string]string{"body": "Updated Comment Body"}
+		reqBody = map[string]string{"body": "Updated Note Body"}
 		body, _ = json.Marshal(reqBody)
-		resp = makeRequest(t, server, "PUT", "/api/v1/comments/"+commentID, body)
+		resp = makeRequest(t, server, "PUT", "/api/v1/notes/"+noteID, body)
 
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 		data = readResponse(t, resp)
-		assert.Equal(t, "Updated Comment Body", data["body"])
+		assert.Equal(t, "Updated Note Body", data["body"])
 	})
 
-	// Test PUT /comments/{id} - not found
-	t.Run("UpdateComment_NotFound", func(t *testing.T) {
+	// Test PUT /notes/{id} - not found
+	t.Run("UpdateNote_NotFound", func(t *testing.T) {
 		reqBody := map[string]string{"body": "Should Not Work"}
 		body, _ := json.Marshal(reqBody)
-		resp := makeRequest(t, server, "PUT", "/api/v1/comments/nonexistent-id", body)
+		resp := makeRequest(t, server, "PUT", "/api/v1/notes/nonexistent-id", body)
 		assert.Equal(t, http.StatusNotFound, resp.StatusCode)
 		data := readResponse(t, resp)
 		assert.Equal(t, "not found", data["error"])
 	})
 
-	// Test DELETE /comments/{id} - delete comment
-	t.Run("DeleteComment", func(t *testing.T) {
-		// Create a comment
+	// Test DELETE /notes/{id} - delete note
+	t.Run("DeleteNote", func(t *testing.T) {
+		// Create a note
 		reqBody := map[string]string{"body": "Delete Me"}
 		body, _ = json.Marshal(reqBody)
-		resp := makeRequest(t, server, "POST", "/api/v1/tickets/"+ticketID+"/comments", body)
+		resp := makeRequest(t, server, "POST", "/api/v1/tickets/"+ticketID+"/notes", body)
 		data := readResponse(t, resp)
-		commentID := data["id"].(string)
+		noteID := data["id"].(string)
 
-		// Delete the comment
-		resp = makeRequest(t, server, "DELETE", "/api/v1/comments/"+commentID, nil)
+		// Delete the note
+		resp = makeRequest(t, server, "DELETE", "/api/v1/notes/"+noteID, nil)
 		assert.Equal(t, http.StatusNoContent, resp.StatusCode)
 
-		// Verify comment is gone
-		resp = makeRequest(t, server, "GET", "/api/v1/comments/"+commentID, nil)
+		// Verify note is gone
+		resp = makeRequest(t, server, "GET", "/api/v1/notes/"+noteID, nil)
 		assert.Equal(t, http.StatusNotFound, resp.StatusCode)
 	})
 
-	// Test DELETE /comments/{id} - not found
-	t.Run("DeleteComment_NotFound", func(t *testing.T) {
-		resp := makeRequest(t, server, "DELETE", "/api/v1/comments/nonexistent-id", nil)
+	// Test DELETE /notes/{id} - not found
+	t.Run("DeleteNote_NotFound", func(t *testing.T) {
+		resp := makeRequest(t, server, "DELETE", "/api/v1/notes/nonexistent-id", nil)
 		assert.Equal(t, http.StatusNotFound, resp.StatusCode)
 		data := readResponse(t, resp)
 		assert.Equal(t, "not found", data["error"])

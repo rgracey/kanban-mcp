@@ -1,4 +1,4 @@
-import type { Board, Epic, Ticket, Comment, Task, TicketEvent, TicketRelation, BoardSummary, TicketFilter, Status, Priority } from './types.js'
+import type { Board, Epic, Ticket, Note, Task, TicketEvent, TicketRelation, BoardSummary, TicketFilter, Status, Priority } from './types.js'
 
 const BASE = '/api/v1'
 
@@ -72,10 +72,10 @@ export const addRelation = (ticketId: string, toTicketId: string) =>
 export const deleteRelation = (ticketId: string, toTicketId: string) =>
   request<void>(`/tickets/${ticketId}/relations/${toTicketId}`, { method: 'DELETE' })
 
-// Comments
-export const listComments = (ticketId: string) => request<Comment[]>(`/tickets/${ticketId}/comments`)
-export const createComment = (ticketId: string, body: string) =>
-  request<Comment>(`/tickets/${ticketId}/comments`, { method: 'POST', body: JSON.stringify({ body }) })
-export const updateComment = (id: string, body: string) =>
-  request<Comment>(`/comments/${id}`, { method: 'PUT', body: JSON.stringify({ body }) })
-export const deleteComment = (id: string) => request<void>(`/comments/${id}`, { method: 'DELETE' })
+// Notes (agent scratchpad)
+export const listNotes = (ticketId: string) => request<Note[]>(`/tickets/${ticketId}/notes`)
+export const createNote = (ticketId: string, body: string) =>
+  request<Note>(`/tickets/${ticketId}/notes`, { method: 'POST', body: JSON.stringify({ body }) })
+export const updateNote = (id: string, body: string) =>
+  request<Note>(`/notes/${id}`, { method: 'PUT', body: JSON.stringify({ body }) })
+export const deleteNote = (id: string) => request<void>(`/notes/${id}`, { method: 'DELETE' })

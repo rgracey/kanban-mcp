@@ -48,7 +48,7 @@ export interface Ticket {
   updated_at: string
 }
 
-export interface Comment {
+export interface Note {
   id: string
   ticket_id: string
   body: string
@@ -82,6 +82,7 @@ export type TicketEventType =
   | 'commented' | 'comment_edited'
   | 'task_added' | 'task_updated' | 'task_deleted'
   | 'relation_added' | 'relation_removed'
+  | string
 
 export interface TicketEvent {
   id: string

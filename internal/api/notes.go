@@ -9,13 +9,13 @@ import (
 	"github.com/rgracey/kanban-mcp/internal/store"
 )
 
-// CommentRequest represents the request body for comment creation/update
-type CommentRequest struct {
+// NoteRequest represents the request body for note creation/update
+type NoteRequest struct {
 	Body string `json:"body"`
 }
 
-// ListComments returns all comments for a ticket
-func ListComments(s store.Store) http.HandlerFunc {
+// ListNotes returns all notes for a ticket
+func ListNotes(s store.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ticketID := chi.URLParam(r, "id")
 		if ticketID == "" {
@@ -23,7 +23,7 @@ func ListComments(s store.Store) http.HandlerFunc {
 			return
 		}
 
-		comments, err := s.ListComments(r.Context(), ticketID)
+		notes, err := s.ListNotes(r.Context(), ticketID)
 		if err != nil {
 			if isNotFoundError(err) {
 				http.Error(w, `{"error": "not found"}`, http.StatusNotFound)
@@ -34,12 +34,12 @@ func ListComments(s store.Store) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(comments)
+		json.NewEncoder(w).Encode(notes)
 	}
 }
 
-// CreateComment creates a new comment
-func CreateComment(s store.Store, hub *Hub) http.HandlerFunc {
+// CreateNote creates a new note
+func CreateNote(s store.Store, hub *Hub) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ticketID := chi.URLParam(r, "id")
 		if ticketID == "" {
@@ -57,7 +57,7 @@ func CreateComment(s store.Store, hub *Hub) http.HandlerFunc {
 			return
 		}
 
-		var req CommentRequest
+		var req NoteRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, `{"error": "invalid JSON"}`, http.StatusBadRequest)
 			return
@@ -69,21 +69,21 @@ func CreateComment(s store.Store, hub *Hub) http.HandlerFunc {
 			return
 		}
 
-		comment, err := s.CreateComment(r.Context(), ticketID, req.Body)
+		note, err := s.CreateNote(r.Context(), ticketID, req.Body)
 		if err != nil {
 			http.Error(w, `{"error": "internal server error"}`, http.StatusInternalServerError)
 			return
 		}
 
-		hub.Publish(SSEEvent{Type: "comment.created", BoardID: ticket.BoardID})
+		hub.Publish(SSEEvent{Type: "note.created", BoardID: ticket.BoardID})
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(comment)
+		json.NewEncoder(w).Encode(note)
 	}
 }
 
-// GetComment retrieves a single comment by ID
-func GetComment(s store.Store) http.HandlerFunc {
+// GetNote retrieves a single note by ID
+func GetNote(s store.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := chi.URLParam(r, "id")
 		if id == "" {
@@ -91,7 +91,7 @@ func GetComment(s store.Store) http.HandlerFunc {
 			return
 		}
 
-		comment, err := s.GetComment(r.Context(), id)
+		note, err := s.GetNote(r.Context(), id)
 		if err != nil {
 			if isNotFoundError(err) {
 				http.Error(w, `{"error": "not found"}`, http.StatusNotFound)
@@ -102,12 +102,12 @@ func GetComment(s store.Store) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(comment)
+		json.NewEncoder(w).Encode(note)
 	}
 }
 
-// UpdateComment updates a comment
-func UpdateComment(s store.Store) http.HandlerFunc {
+// UpdateNote updates a note
+func UpdateNote(s store.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := chi.URLParam(r, "id")
 		if id == "" {
@@ -115,7 +115,7 @@ func UpdateComment(s store.Store) http.HandlerFunc {
 			return
 		}
 
-		var req CommentRequest
+		var req NoteRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, `{"error": "invalid JSON"}`, http.StatusBadRequest)
 			return
@@ -127,7 +127,7 @@ func UpdateComment(s store.Store) http.HandlerFunc {
 			return
 		}
 
-		comment, err := s.UpdateComment(r.Context(), id, req.Body)
+		note, err := s.UpdateNote(r.Context(), id, req.Body)
 		if err != nil {
 			if isNotFoundError(err) {
 				http.Error(w, `{"error": "not found"}`, http.StatusNotFound)
@@ -138,12 +138,12 @@ func UpdateComment(s store.Store) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(comment)
+		json.NewEncoder(w).Encode(note)
 	}
 }
 
-// DeleteComment deletes a comment
-func DeleteComment(s store.Store) http.HandlerFunc {
+// DeleteNote deletes a note
+func DeleteNote(s store.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := chi.URLParam(r, "id")
 		if id == "" {
@@ -151,8 +151,8 @@ func DeleteComment(s store.Store) http.HandlerFunc {
 			return
 		}
 
-		// Check if comment exists first
-		if _, err := s.GetComment(r.Context(), id); err != nil {
+		// Check if note exists first
+		if _, err := s.GetNote(r.Context(), id); err != nil {
 			if isNotFoundError(err) {
 				http.Error(w, `{"error": "not found"}`, http.StatusNotFound)
 				return
@@ -161,7 +161,7 @@ func DeleteComment(s store.Store) http.HandlerFunc {
 			return
 		}
 
-		err := s.DeleteComment(r.Context(), id)
+		err := s.DeleteNote(r.Context(), id)
 		if err != nil {
 			http.Error(w, `{"error": "internal server error"}`, http.StatusInternalServerError)
 			return

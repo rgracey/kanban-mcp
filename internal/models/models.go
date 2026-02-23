@@ -76,7 +76,10 @@ type Ticket struct {
 	UpdatedAt   time.Time         `json:"updated_at"`
 }
 
-type Comment struct {
+// Note is an agent scratchpad entry attached to a ticket.
+// Notes replace the old comments system and are intended for machine-readable
+// observations, investigation logs, and intermediate reasoning.
+type Note struct {
 	ID        string    `json:"id"`
 	TicketID  string    `json:"ticket_id"`
 	Body      string    `json:"body"`

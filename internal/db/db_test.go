@@ -18,7 +18,7 @@ func TestOpen(t *testing.T) {
 	defer dbConn.Close()
 
 	// Verify all four tables exist
-	expectedTables := []string{"boards", "epics", "tickets", "comments"}
+	expectedTables := []string{"boards", "epics", "tickets", "notes"}
 
 	for _, tableName := range expectedTables {
 		var name string
@@ -55,7 +55,7 @@ func TestOpenReRun(t *testing.T) {
 	defer dbConn2.Close()
 
 	// Verify tables still exist
-	expectedTables := []string{"boards", "epics", "tickets", "comments"}
+	expectedTables := []string{"boards", "epics", "tickets", "notes"}
 	for _, tableName := range expectedTables {
 		var name string
 		err := dbConn2.QueryRow("SELECT name FROM sqlite_master WHERE type='table' AND name=?", tableName).Scan(&name)

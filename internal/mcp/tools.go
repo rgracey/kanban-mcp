@@ -250,7 +250,7 @@ func registerTools(srv *server.MCPServer, s store.Store) {
 			mcpgo.WithString("q", mcpgo.Description("Keyword search (list)")),
 			mcpgo.WithString("sort_by", mcpgo.Description("priority|created_at (list)")),
 			mcpgo.WithString("sort_order", mcpgo.Description("asc|desc (list)")),
-			mcpgo.WithBoolean("include_comments", mcpgo.Description("Embed comments (get)")),
+			mcpgo.WithBoolean("include_comments", mcpgo.Description("Embed agent notes (get)")),
 			mcpgo.WithBoolean("include_history", mcpgo.Description("Embed audit history (get)")),
 			mcpgo.WithString("tickets_json", mcpgo.Description(`JSON array of ticket objects for bulk_create, e.g. [{"title":"T1","priority":"high"},{"title":"T2"}]`)),
 			mcpgo.WithString("references_json", mcpgo.Description(`JSON array of code references for create/update, e.g. [{"kind":"file","target":"src/api/handler.go:42","label":"handler"},{"kind":"pr","target":"https://github.com/..."}]`)),
@@ -311,16 +311,16 @@ func registerTools(srv *server.MCPServer, s store.Store) {
 				}
 				type envelope struct {
 					models.Ticket
-					Comments []models.Comment     `json:"comments,omitempty"`
-					History  []models.TicketEvent `json:"history,omitempty"`
+					Notes   []models.Note        `json:"notes,omitempty"`
+					History []models.TicketEvent `json:"history,omitempty"`
 				}
 				out := envelope{Ticket: ticket}
 				if v, ok := args["include_comments"].(bool); ok && v {
-					comments, err := s.ListComments(ctx, id)
+					notes, err := s.ListNotes(ctx, id)
 					if err != nil {
 						return mcpgo.NewToolResultError(err.Error()), nil
 					}
-					out.Comments = comments
+					out.Notes = notes
 				}
 				if v, ok := args["include_history"].(bool); ok && v {
 					events, err := s.ListTicketEvents(ctx, id)
@@ -551,15 +551,15 @@ func registerTools(srv *server.MCPServer, s store.Store) {
 	)
 
 	// -------------------------------------------------------------------------
-	// comment — list | add | update | delete
+	// note — list | add | update | delete  (agent scratchpad)
 	// -------------------------------------------------------------------------
 	srv.AddTool(
-		mcpgo.NewTool("comment",
-			mcpgo.WithDescription("Manage comments on a ticket. action: list, add, update, delete"),
+		mcpgo.NewTool("note",
+			mcpgo.WithDescription("Manage agent scratchpad notes on a ticket. Use notes to record observations, intermediate reasoning, investigation logs, and any other machine-readable context. action: list, add, update, delete"),
 			mcpgo.WithString("action", mcpgo.Required(), mcpgo.Description("list|add|update|delete")),
-			mcpgo.WithString("id", mcpgo.Description("Comment ID (update/delete)")),
+			mcpgo.WithString("id", mcpgo.Description("Note ID (update/delete)")),
 			mcpgo.WithString("ticket_id", mcpgo.Description("Ticket ID (list/add)")),
-			mcpgo.WithString("body", mcpgo.Description("Comment text (add/update)")),
+			mcpgo.WithString("body", mcpgo.Description("Note text (add/update)")),
 		),
 		func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 			action, err := req.RequireString("action")
@@ -578,11 +578,11 @@ func registerTools(srv *server.MCPServer, s store.Store) {
 				if ticketID == "" {
 					return mcpgo.NewToolResultError("ticket_id required"), nil
 				}
-				comments, err := s.ListComments(ctx, ticketID)
+				notes, err := s.ListNotes(ctx, ticketID)
 				if err != nil {
 					return mcpgo.NewToolResultError(err.Error()), nil
 				}
-				return jsonResult(comments)
+				return jsonResult(notes)
 
 			case "add":
 				ticketID := getString("ticket_id")
@@ -590,11 +590,11 @@ func registerTools(srv *server.MCPServer, s store.Store) {
 				if ticketID == "" || body == "" {
 					return mcpgo.NewToolResultError("ticket_id and body required"), nil
 				}
-				comment, err := s.CreateComment(ctx, ticketID, body)
+				note, err := s.CreateNote(ctx, ticketID, body)
 				if err != nil {
 					return mcpgo.NewToolResultError(err.Error()), nil
 				}
-				return jsonResult(comment)
+				return jsonResult(note)
 
 			case "update":
 				id := getString("id")
@@ -602,18 +602,18 @@ func registerTools(srv *server.MCPServer, s store.Store) {
 				if id == "" || body == "" {
 					return mcpgo.NewToolResultError("id and body required"), nil
 				}
-				comment, err := s.UpdateComment(ctx, id, body)
+				note, err := s.UpdateNote(ctx, id, body)
 				if err != nil {
 					return mcpgo.NewToolResultError(err.Error()), nil
 				}
-				return jsonResult(comment)
+				return jsonResult(note)
 
 			case "delete":
 				id := getString("id")
 				if id == "" {
 					return mcpgo.NewToolResultError("id required"), nil
 				}
-				if err := s.DeleteComment(ctx, id); err != nil {
+				if err := s.DeleteNote(ctx, id); err != nil {
 					return mcpgo.NewToolResultError(err.Error()), nil
 				}
 				return mcpgo.NewToolResultText("deleted"), nil

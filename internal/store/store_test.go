@@ -63,7 +63,7 @@ func TestStoreBoards(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, updatedBoard.ID, updatedBoard2.ID)
 
-	// Test DeleteBoard (cascades to tickets and comments)
+	// Test DeleteBoard (cascades to tickets and notes)
 	ticket, err := store.CreateTicket(ctx, board.ID, models.Ticket{
 		Title:       "Test Ticket",
 		Description: "Test Description",
@@ -72,7 +72,7 @@ func TestStoreBoards(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	comment, err := store.CreateComment(ctx, ticket.ID, "Test Comment")
+	note, err := store.CreateNote(ctx, ticket.ID, "Test Note")
 	require.NoError(t, err)
 
 	err = store.DeleteBoard(ctx, board.ID)
@@ -86,8 +86,8 @@ func TestStoreBoards(t *testing.T) {
 	_, err = store.GetTicket(ctx, ticket.ID)
 	assert.Error(t, err)
 
-	// Verify cascade delete - comment should be gone
-	_, err = store.GetComment(ctx, comment.ID)
+	// Verify cascade delete - note should be gone
+	_, err = store.GetNote(ctx, note.ID)
 	assert.Error(t, err)
 }
 
@@ -237,32 +237,32 @@ func TestStoreTickets(t *testing.T) {
 	assert.Len(t, tickets, 1)
 	assert.Equal(t, models.StatusInProgress, tickets[0].Status)
 
-	// Test DeleteTicket (cascades to comments)
-	ticketWithComment, err := store.CreateTicket(ctx, board.ID, models.Ticket{
-		Title:       "Ticket with Comment",
+	// Test DeleteTicket (cascades to notes)
+	ticketWithNote, err := store.CreateTicket(ctx, board.ID, models.Ticket{
+		Title:       "Ticket with Note",
 		Description: "Test",
 		Status:      models.StatusTodo,
 		Priority:    models.PriorityMedium,
 	})
 	require.NoError(t, err)
 
-	comment, err := store.CreateComment(ctx, ticketWithComment.ID, "Test Comment")
+	note, err := store.CreateNote(ctx, ticketWithNote.ID, "Test Note")
 	require.NoError(t, err)
 
-	err = store.DeleteTicket(ctx, ticketWithComment.ID)
+	err = store.DeleteTicket(ctx, ticketWithNote.ID)
 	require.NoError(t, err)
 
 	// Verify ticket is deleted
-	_, err = store.GetTicket(ctx, ticketWithComment.ID)
+	_, err = store.GetTicket(ctx, ticketWithNote.ID)
 	assert.Error(t, err)
 
-	// Verify cascade delete - comment should be gone
-	_, err = store.GetComment(ctx, comment.ID)
+	// Verify cascade delete - note should be gone
+	_, err = store.GetNote(ctx, note.ID)
 	assert.Error(t, err)
 }
 
-// TestStoreComments tests comment CRUD operations.
-func TestStoreComments(t *testing.T) {
+// TestStoreNotes tests note CRUD operations.
+func TestStoreNotes(t *testing.T) {
 	store, _ := setupStore(t)
 
 	ctx := t.Context()
@@ -279,62 +279,62 @@ func TestStoreComments(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	// Test CreateComment
-	comment, err := store.CreateComment(ctx, ticket.ID, "First Comment")
+	// Test CreateNote
+	note, err := store.CreateNote(ctx, ticket.ID, "First Note")
 	require.NoError(t, err)
-	assert.NotEmpty(t, comment.ID)
-	assert.Equal(t, ticket.ID, comment.TicketID)
-	assert.Equal(t, "First Comment", comment.Body)
-	assert.NotZero(t, comment.CreatedAt)
-	assert.NotZero(t, comment.UpdatedAt)
+	assert.NotEmpty(t, note.ID)
+	assert.Equal(t, ticket.ID, note.TicketID)
+	assert.Equal(t, "First Note", note.Body)
+	assert.NotZero(t, note.CreatedAt)
+	assert.NotZero(t, note.UpdatedAt)
 
-	// Test GetComment
-	retrievedComment, err := store.GetComment(ctx, comment.ID)
+	// Test GetNote
+	retrievedNote, err := store.GetNote(ctx, note.ID)
 	require.NoError(t, err)
-	assert.Equal(t, comment.ID, retrievedComment.ID)
-	assert.Equal(t, comment.Body, retrievedComment.Body)
+	assert.Equal(t, note.ID, retrievedNote.ID)
+	assert.Equal(t, note.Body, retrievedNote.Body)
 
-	// Test ListComments (single comment)
-	comments, err := store.ListComments(ctx, ticket.ID)
+	// Test ListNotes (single note)
+	notes, err := store.ListNotes(ctx, ticket.ID)
 	require.NoError(t, err)
-	assert.Len(t, comments, 1)
-	assert.Equal(t, comment.ID, comments[0].ID)
+	assert.Len(t, notes, 1)
+	assert.Equal(t, note.ID, notes[0].ID)
 
-	// Test UpdateComment
-	updatedComment, err := store.UpdateComment(ctx, comment.ID, "Updated Comment Body")
+	// Test UpdateNote
+	updatedNote, err := store.UpdateNote(ctx, note.ID, "Updated Note Body")
 	require.NoError(t, err)
-	assert.Equal(t, "Updated Comment Body", updatedComment.Body)
+	assert.Equal(t, "Updated Note Body", updatedNote.Body)
 
-	// Test ListComments (multiple comments, ordered by created_at asc)
+	// Test ListNotes (multiple notes, ordered by created_at asc)
 	// Wait a bit to ensure different timestamps
 	time.Sleep(100 * time.Millisecond)
-	comment1, err := store.CreateComment(ctx, ticket.ID, "Second Comment")
+	note1, err := store.CreateNote(ctx, ticket.ID, "Second Note")
 	require.NoError(t, err)
 
 	// Wait a bit more for another distinct timestamp
 	time.Sleep(100 * time.Millisecond)
-	comment2, err := store.CreateComment(ctx, ticket.ID, "Third Comment")
+	note2, err := store.CreateNote(ctx, ticket.ID, "Third Note")
 	require.NoError(t, err)
 
-	comments, err = store.ListComments(ctx, ticket.ID)
+	notes, err = store.ListNotes(ctx, ticket.ID)
 	require.NoError(t, err)
-	assert.Len(t, comments, 3)
+	assert.Len(t, notes, 3)
 
-	// Comments should be ordered by created_at ascending
-	// First comment should be the original one
-	assert.Equal(t, comment.ID, comments[0].ID)
-	// Second should be comment1
-	assert.Equal(t, comment1.ID, comments[1].ID)
-	// Third should be comment2
-	assert.Equal(t, comment2.ID, comments[2].ID)
+	// Notes should be ordered by created_at ascending
+	// First note should be the original one
+	assert.Equal(t, note.ID, notes[0].ID)
+	// Second should be note1
+	assert.Equal(t, note1.ID, notes[1].ID)
+	// Third should be note2
+	assert.Equal(t, note2.ID, notes[2].ID)
 
-	// Test DeleteComment
-	err = store.DeleteComment(ctx, comment1.ID)
+	// Test DeleteNote
+	err = store.DeleteNote(ctx, note1.ID)
 	require.NoError(t, err)
 
-	comments, err = store.ListComments(ctx, ticket.ID)
+	notes, err = store.ListNotes(ctx, ticket.ID)
 	require.NoError(t, err)
-	assert.Len(t, comments, 2)
+	assert.Len(t, notes, 2)
 }
 
 // TestGetBoardSummary tests the GetBoardSummary function.

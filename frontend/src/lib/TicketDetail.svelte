@@ -1,14 +1,14 @@
 <script lang="ts">
-  import type { Ticket, Epic, Comment, Task, TicketEvent, TicketRelation, TicketReference, TicketResolution } from "./types.js";
+  import type { Ticket, Epic, Note, Task, TicketEvent, TicketRelation, TicketReference, TicketResolution } from "./types.js";
   import {
     getTicket,
     updateTicket,
     deleteTicket,
     listEpics,
-    listComments,
-    createComment,
-    updateComment,
-    deleteComment,
+    listNotes,
+    createNote,
+    updateNote,
+    deleteNote,
     listTasks,
     createTask,
     updateTask,
@@ -36,7 +36,7 @@
   // --- server data ---
   let ticket = $state<Ticket | null>(null);
   let epics = $state<Epic[]>([]);
-  let comments = $state<Comment[]>([]);
+  let notes = $state<Note[]>([]);
   let tasks = $state<Task[]>([]);
   let events = $state<TicketEvent[]>([]);
   let relations = $state<TicketRelation[]>([]);
@@ -90,21 +90,21 @@
   const taskTotal = $derived(tasks.length + pendingTasks.length);
   const taskProgress = $derived(taskTotal > 0 ? Math.round((taskDoneCount / tasks.length) * 100) : 0);
 
-  // --- comment state ---
-  let newCommentBody = $state("");
-  let addingComment = $state(false);
-  let editingCommentId = $state<string | null>(null);
-  let editingCommentBody = $state("");
-  let savingComment = $state(false);
+  // --- note state ---
+  let newNoteBody = $state("");
+  let addingNote = $state(false);
+  let editingNoteId = $state<string | null>(null);
+  let editingNoteBody = $state("");
+  let savingNote = $state(false);
 
   async function load() {
     loading = true;
     loadError = "";
     try {
-      const [t, e, c, tk, ev, rels, bt] = await Promise.all([
+      const [t, e, n, tk, ev, rels, bt] = await Promise.all([
         getTicket(ticketId),
         listEpics(boardId),
-        listComments(ticketId),
+        listNotes(ticketId),
         listTasks(ticketId),
         listTicketEvents(ticketId),
         listRelations(ticketId),
@@ -112,7 +112,7 @@
       ]);
       ticket = t;
       epics = e;
-      comments = c;
+      notes = n;
       tasks = tk;
       events = ev;
       relations = rels;
@@ -271,48 +271,48 @@
     }
   }
 
-  async function submitComment() {
-    if (!newCommentBody.trim() || !ticket) return;
-    addingComment = true;
+  async function submitNote() {
+    if (!newNoteBody.trim() || !ticket) return;
+    addingNote = true;
     try {
-      const comment = await createComment(ticket.id, newCommentBody.trim());
-      comments = [...comments, comment];
-      newCommentBody = "";
-      toast.success("Comment posted");
+      const note = await createNote(ticket.id, newNoteBody.trim());
+      notes = [...notes, note];
+      newNoteBody = "";
+      toast.success("Note posted");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to post comment");
+      toast.error(e instanceof Error ? e.message : "Failed to post note");
     } finally {
-      addingComment = false;
+      addingNote = false;
     }
   }
 
-  function startEditComment(comment: Comment) {
-    editingCommentId = comment.id;
-    editingCommentBody = comment.body;
+  function startEditNote(note: Note) {
+    editingNoteId = note.id;
+    editingNoteBody = note.body;
   }
 
-  async function saveCommentEdit() {
-    if (!editingCommentId) return;
-    savingComment = true;
+  async function saveNoteEdit() {
+    if (!editingNoteId) return;
+    savingNote = true;
     try {
-      const updated = await updateComment(editingCommentId, editingCommentBody);
-      comments = comments.map((c) => (c.id === updated.id ? updated : c));
-      editingCommentId = null;
-      toast.success("Comment updated");
+      const updated = await updateNote(editingNoteId, editingNoteBody);
+      notes = notes.map((n) => (n.id === updated.id ? updated : n));
+      editingNoteId = null;
+      toast.success("Note updated");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to update comment");
+      toast.error(e instanceof Error ? e.message : "Failed to update note");
     } finally {
-      savingComment = false;
+      savingNote = false;
     }
   }
 
-  async function removeComment(id: string) {
+  async function removeNote(id: string) {
     try {
-      await deleteComment(id);
-      comments = comments.filter((c) => c.id !== id);
-      toast.success("Comment deleted");
+      await deleteNote(id);
+      notes = notes.filter((n) => n.id !== id);
+      toast.success("Note deleted");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to delete comment");
+      toast.error(e instanceof Error ? e.message : "Failed to delete note");
     }
   }
 
@@ -344,8 +344,8 @@
     created:          '✦',
     moved:            '→',
     edited:           '✎',
-    commented:        '💬',
-    comment_edited:   '💬',
+    commented:        '📝',
+    comment_edited:   '📝',
     task_added:       '☐',
     task_updated:     '☑',
     task_deleted:     '✕',
@@ -386,8 +386,8 @@
         }
         return parts.length ? parts.join('; ') : 'Edited'
       }
-      case 'commented': return 'Comment added'
-      case 'comment_edited': return 'Comment edited'
+      case 'commented': return 'Note added'
+      case 'comment_edited': return 'Note edited'
       case 'task_added': return p.task_title ? `Task added: "${p.task_title}"` : 'Task added'
       case 'task_updated': {
         const title = p.task_title as string | undefined
@@ -888,48 +888,51 @@
           {/if}
         </div>
 
-        <!-- Comments -->
+        <!-- Agent Notes (scratchpad) -->
         <div class={sectionCls}>
-          <h3 class={labelCls}>
-            Comments
-            {#if comments.length > 0}
-              <span class="ml-1 font-normal normal-case text-gray-400">({comments.length})</span>
-            {/if}
-          </h3>
+          <div class="flex items-center justify-between mb-2">
+            <h3 class={labelCls} style="margin-bottom:0">
+              Agent Notes
+              {#if notes.length > 0}
+                <span class="ml-1 font-normal normal-case text-gray-400">({notes.length})</span>
+              {/if}
+            </h3>
+            <span class="text-[10px] text-gray-400 dark:text-gray-500 italic">scratchpad · visible to agents</span>
+          </div>
 
-          {#if comments.length > 0}
+          {#if notes.length > 0}
             <div class="space-y-2.5 mb-4">
-              {#each comments as comment (comment.id)}
+              {#each notes as note (note.id)}
                 <div class="bg-gray-50 dark:bg-gray-800/60 border border-gray-100 dark:border-gray-700/60 rounded-lg p-3">
-                  {#if editingCommentId === comment.id}
+                  {#if editingNoteId === note.id}
                     <textarea
                       class="w-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none mb-2"
                       rows="3"
-                      bind:value={editingCommentBody}
+                      bind:value={editingNoteBody}
                     ></textarea>
                     <div class="flex gap-2">
                       <button
                         class="px-3 py-1.5 text-xs font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
-                        onclick={saveCommentEdit}
-                        disabled={savingComment}
-                      >{savingComment ? "Saving..." : "Save"}</button>
+                        onclick={saveNoteEdit}
+                        disabled={savingNote}
+                      >{savingNote ? "Saving..." : "Save"}</button>
                       <button
                         class="px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                        onclick={() => (editingCommentId = null)}
+                        onclick={() => (editingNoteId = null)}
                       >Cancel</button>
                     </div>
                   {:else}
-                    <p class="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap">{comment.body}</p>
+                    <p class="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap font-mono">{note.body}</p>
                     <div class="flex items-center justify-between mt-2">
-                      <time class="text-xs text-gray-400 dark:text-gray-500">{formatDate(comment.created_at)}</time>
+                      <time class="text-xs text-gray-400 dark:text-gray-500">{formatDate(note.created_at)}</time>
                       <div class="flex gap-2">
                         <button
                           class="text-xs text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-                          onclick={() => startEditComment(comment)}
+                          onclick={() => startEditNote(note)}
                         >Edit</button>
                         <button
                           class="text-xs text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
-                          onclick={() => removeComment(comment.id)}
+                          onclick={() => removeNote(note.id)}
                         >Delete</button>
                       </div>
                     </div>
@@ -938,21 +941,21 @@
               {/each}
             </div>
           {:else}
-            <p class="text-sm text-gray-400 dark:text-gray-500 italic mb-3">No comments yet.</p>
+            <p class="text-sm text-gray-400 dark:text-gray-500 italic mb-3">No notes yet.</p>
           {/if}
 
           <div class="space-y-2">
             <textarea
-              class={inputCls + " resize-none"}
+              class={inputCls + " resize-none font-mono"}
               rows="2"
-              placeholder="Add a comment…"
-              bind:value={newCommentBody}
+              placeholder="Add a note… (observations, reasoning, findings)"
+              bind:value={newNoteBody}
             ></textarea>
             <button
               class="px-4 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors shadow-sm"
-              onclick={submitComment}
-              disabled={addingComment || !newCommentBody.trim()}
-            >{addingComment ? "Posting..." : "Post comment"}</button>
+              onclick={submitNote}
+              disabled={addingNote || !newNoteBody.trim()}
+            >{addingNote ? "Posting..." : "Add note"}</button>
           </div>
         </div>
 

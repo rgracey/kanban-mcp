@@ -29,12 +29,12 @@ type Store interface {
 	UpdateTicket(ctx context.Context, id string, fields map[string]any) (models.Ticket, error)
 	DeleteTicket(ctx context.Context, id string) error
 
-	// Comments
-	ListComments(ctx context.Context, ticketID string) ([]models.Comment, error)
-	CreateComment(ctx context.Context, ticketID, body string) (models.Comment, error)
-	GetComment(ctx context.Context, id string) (models.Comment, error)
-	UpdateComment(ctx context.Context, id, body string) (models.Comment, error)
-	DeleteComment(ctx context.Context, id string) error
+	// Notes (agent scratchpad)
+	ListNotes(ctx context.Context, ticketID string) ([]models.Note, error)
+	CreateNote(ctx context.Context, ticketID, body string) (models.Note, error)
+	GetNote(ctx context.Context, id string) (models.Note, error)
+	UpdateNote(ctx context.Context, id, body string) (models.Note, error)
+	DeleteNote(ctx context.Context, id string) error
 
 	// Events
 	ListTicketEvents(ctx context.Context, ticketID string) ([]models.TicketEvent, error)
