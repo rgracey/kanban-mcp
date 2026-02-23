@@ -31,6 +31,7 @@
 	import { toast } from 'svelte-sonner';
 	import { marked } from 'marked';
 	import { untrack } from 'svelte';
+	import CopyId from './CopyId.svelte';
 
 	interface Props {
 		ticketId: string;
@@ -463,7 +464,12 @@
 	<div
 		class="flex shrink-0 items-center justify-between border-b border-gray-200 bg-white px-5 py-3.5 dark:border-gray-800 dark:bg-gray-900"
 	>
-		<h2 class="text-sm font-semibold text-gray-900 dark:text-gray-100">Ticket Detail</h2>
+		<div class="flex items-center gap-2">
+			<h2 class="text-sm font-semibold text-gray-900 dark:text-gray-100">Ticket Detail</h2>
+			{#if ticket}
+				<CopyId id={ticket.id} />
+			{/if}
+		</div>
 		<button
 			class="flex h-7 w-7 items-center justify-center rounded-lg text-lg leading-none text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
 			onclick={onclose}

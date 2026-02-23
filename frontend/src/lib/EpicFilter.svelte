@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Epic } from './types.js';
+	import CopyId from './CopyId.svelte';
 
 	interface Props {
 		epics: Epic[];
@@ -31,6 +32,7 @@
 				onclick={() => onchange(epic.id)}
 			>
 				{epic.title}
+				<CopyId id={epic.id} />
 			</button>
 			<!-- Edit icon, positioned over the right side of the pill -->
 			<button

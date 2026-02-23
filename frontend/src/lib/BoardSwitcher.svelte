@@ -2,6 +2,7 @@
 	import type { Board } from './types.js';
 	import CreateBoard from './modals/CreateBoard.svelte';
 	import EditBoard from './modals/EditBoard.svelte';
+	import CopyId from './CopyId.svelte';
 
 	interface Props {
 		boards: Board[];
@@ -31,6 +32,9 @@
 				onclick={() => onselect(board.id)}
 			>
 				{board.name}
+				{#if active}
+					<CopyId id={board.id} />
+				{/if}
 			</button>
 			{#if active}
 				<button
