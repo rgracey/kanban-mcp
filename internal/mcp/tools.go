@@ -23,7 +23,7 @@ func registerTools(srv *server.MCPServer, s store.Store) {
 			mcpgo.WithString("id", mcpgo.Description("Board ID (get/update/delete/summary)")),
 			mcpgo.WithString("name", mcpgo.Description("Board name (create/update)")),
 			mcpgo.WithString("description", mcpgo.Description("Board description (create/update)")),
-			mcpgo.WithString("filter_status", mcpgo.Description("Filter tickets by status for context action (todo|in_progress|done)")),
+			mcpgo.WithString("filter_status", mcpgo.Description("Filter tickets by status for context action (todo|in_progress|done|blocked)")),
 			mcpgo.WithBoolean("omit_descriptions", mcpgo.Description("Omit ticket description text in context response to reduce size")),
 		),
 		func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
@@ -259,7 +259,7 @@ func registerTools(srv *server.MCPServer, s store.Store) {
 			mcpgo.WithString("board_id", mcpgo.Description("Board ID (list/create/bulk_create)")),
 			mcpgo.WithString("title", mcpgo.Description("Title (create/update)")),
 			mcpgo.WithString("description", mcpgo.Description("Description (create/update)")),
-			mcpgo.WithString("status", mcpgo.Description("todo|in_progress|done")),
+			mcpgo.WithString("status", mcpgo.Description("todo|in_progress|done|blocked")),
 			mcpgo.WithString("priority", mcpgo.Description("low|medium|high|critical")),
 			mcpgo.WithString("epic_id", mcpgo.Description("Epic ID, empty to clear")),
 			mcpgo.WithString("assignee", mcpgo.Description("Assignee name, empty to clear")),

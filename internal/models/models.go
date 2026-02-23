@@ -16,6 +16,7 @@ const (
 	StatusTodo       Status = "todo"
 	StatusInProgress Status = "in_progress"
 	StatusDone       Status = "done"
+	StatusBlocked    Status = "blocked"
 )
 
 type Priority string

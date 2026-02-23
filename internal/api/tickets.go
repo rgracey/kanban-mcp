@@ -102,8 +102,8 @@ func CreateTicket(s store.Store, hub *Hub) http.HandlerFunc {
 		var status models.Status
 		if req.Status != nil {
 			status = models.Status(*req.Status)
-			if status != models.StatusTodo && status != models.StatusInProgress && status != models.StatusDone {
-				http.Error(w, `{"error": "status must be one of: todo, in_progress, done"}`, http.StatusBadRequest)
+			if status != models.StatusTodo && status != models.StatusInProgress && status != models.StatusDone && status != models.StatusBlocked {
+				http.Error(w, `{"error": "status must be one of: todo, in_progress, done, blocked"}`, http.StatusBadRequest)
 				return
 			}
 		} else {
@@ -219,8 +219,8 @@ func UpdateTicket(s store.Store, hub *Hub) http.HandlerFunc {
 				return
 			}
 			status := models.Status(s)
-			if status != models.StatusTodo && status != models.StatusInProgress && status != models.StatusDone {
-				http.Error(w, `{"error": "status must be one of: todo, in_progress, done"}`, http.StatusBadRequest)
+			if status != models.StatusTodo && status != models.StatusInProgress && status != models.StatusDone && status != models.StatusBlocked {
+				http.Error(w, `{"error": "status must be one of: todo, in_progress, done, blocked"}`, http.StatusBadRequest)
 				return
 			}
 			fields["status"] = s
@@ -312,7 +312,7 @@ func BulkCreateTickets(s store.Store, hub *Hub) http.HandlerFunc {
 			var status models.Status
 			if req.Status != nil {
 				status = models.Status(*req.Status)
-				if status != models.StatusTodo && status != models.StatusInProgress && status != models.StatusDone {
+				if status != models.StatusTodo && status != models.StatusInProgress && status != models.StatusDone && status != models.StatusBlocked {
 					http.Error(w, fmt.Sprintf(`{"error": "ticket %d: invalid status"}`, i), http.StatusBadRequest)
 					return
 				}

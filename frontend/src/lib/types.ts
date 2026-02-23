@@ -1,4 +1,4 @@
-export type Status = 'todo' | 'in_progress' | 'done';
+export type Status = 'todo' | 'in_progress' | 'done' | 'blocked';
 export type Priority = 'low' | 'medium' | 'high' | 'critical';
 
 export interface Board {

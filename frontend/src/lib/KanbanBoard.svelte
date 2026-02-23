@@ -29,6 +29,7 @@
 	const columns: { status: Status; label: string }[] = [
 		{ status: 'todo', label: 'To Do' },
 		{ status: 'in_progress', label: 'In Progress' },
+		{ status: 'blocked', label: 'Blocked' },
 		{ status: 'done', label: 'Done' }
 	];
 
@@ -118,7 +119,7 @@
 				try {
 					const saved = await updateTicket(t.id, { status });
 					tickets = tickets.map((existing) => (existing.id === saved.id ? saved : existing));
-					const label = { todo: 'To Do', in_progress: 'In Progress', done: 'Done' }[status];
+					const label = { todo: 'To Do', in_progress: 'In Progress', done: 'Done', blocked: 'Blocked' }[status];
 					toast.success(`Moved "${saved.title}" to ${label}`);
 				} catch (e) {
 					toast.error(e instanceof Error ? e.message : 'Failed to move ticket');
@@ -212,7 +213,7 @@
 	{:else if error}
 		<div class="flex h-64 items-center justify-center text-sm text-red-500">{error}</div>
 	{:else}
-		<div class="grid flex-1 grid-cols-3 gap-4">
+		<div class="grid flex-1 grid-cols-4 gap-4">
 			{#each columns as col (col.status)}
 				<KanbanColumn
 					status={col.status}

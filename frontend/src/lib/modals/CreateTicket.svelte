@@ -151,6 +151,7 @@
 					>
 						<option value="todo">To Do</option>
 						<option value="in_progress">In Progress</option>
+						<option value="blocked">Blocked</option>
 						<option value="done">Done</option>
 					</select>
 				</div>

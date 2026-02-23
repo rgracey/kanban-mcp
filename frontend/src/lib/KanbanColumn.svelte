@@ -30,13 +30,15 @@
 	const statusDot: Record<Status, string> = {
 		todo: 'bg-gray-400 dark:bg-gray-500',
 		in_progress: 'bg-blue-500',
-		done: 'bg-emerald-500'
+		done: 'bg-emerald-500',
+		blocked: 'bg-orange-500'
 	};
 
 	const statusCount: Record<Status, string> = {
 		todo: 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400',
 		in_progress: 'bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400',
-		done: 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400'
+		done: 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400',
+		blocked: 'bg-orange-50 dark:bg-orange-950/50 text-orange-600 dark:text-orange-400'
 	};
 </script>
 

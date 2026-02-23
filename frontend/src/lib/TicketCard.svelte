@@ -36,7 +36,8 @@
 	const statusAccent: Record<string, string> = {
 		todo: 'border-l-gray-300 dark:border-l-gray-600',
 		in_progress: 'border-l-blue-400 dark:border-l-blue-500',
-		done: 'border-l-emerald-400 dark:border-l-emerald-500'
+		done: 'border-l-emerald-400 dark:border-l-emerald-500',
+		blocked: 'border-l-orange-400 dark:border-l-orange-500'
 	};
 
 	const epicName = $derived(
