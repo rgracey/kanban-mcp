@@ -266,6 +266,7 @@ func registerTools(srv *server.MCPServer, s store.Store) {
 			mcpgo.WithString("filter_status", mcpgo.Description("Filter by status (list)")),
 			mcpgo.WithString("filter_priority", mcpgo.Description("Filter by priority (list)")),
 			mcpgo.WithString("filter_epic_id", mcpgo.Description("Filter by epic (list)")),
+			mcpgo.WithString("filter_assignee", mcpgo.Description("Filter by assignee name (list)")),
 			mcpgo.WithString("q", mcpgo.Description("Keyword search (list)")),
 			mcpgo.WithString("sort_by", mcpgo.Description("priority|created_at (list)")),
 			mcpgo.WithString("sort_order", mcpgo.Description("asc|desc (list)")),
@@ -304,6 +305,9 @@ func registerTools(srv *server.MCPServer, s store.Store) {
 				}
 				if v := getString("filter_epic_id"); v != "" {
 					filter.EpicID = &v
+				}
+				if v := getString("filter_assignee"); v != "" {
+					filter.Assignee = &v
 				}
 				if v := getString("q"); v != "" {
 					filter.Query = &v

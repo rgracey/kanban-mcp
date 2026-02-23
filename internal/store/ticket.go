@@ -49,6 +49,10 @@ func (s *SQLiteStore) ListTickets(ctx context.Context, boardID string, filter mo
 		query += ` AND epic_id = ?`
 		args = append(args, *filter.EpicID)
 	}
+	if filter.Assignee != nil {
+		query += ` AND assignee = ?`
+		args = append(args, *filter.Assignee)
+	}
 	if filter.Query != nil {
 		query += ` AND (title LIKE ? OR description LIKE ?)`
 		searchPattern := `%` + *filter.Query + `%`

@@ -48,6 +48,9 @@ func ListTickets(s store.Store) http.HandlerFunc {
 		if epicID := query.Get("epic_id"); epicID != "" {
 			filter.EpicID = &epicID
 		}
+		if assignee := query.Get("assignee"); assignee != "" {
+			filter.Assignee = &assignee
+		}
 
 		if q := query.Get("q"); q != "" {
 			filter.Query = &q

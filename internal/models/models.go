@@ -101,6 +101,7 @@ type TicketFilter struct {
 	Status    *Status
 	Priority  *Priority
 	EpicID    *string
+	Assignee  *string
 	Query     *string // keyword search against title + description
 	SortBy    *string // "priority" | "created_at" (default)
 	SortOrder *string // "asc" | "desc" (default)
