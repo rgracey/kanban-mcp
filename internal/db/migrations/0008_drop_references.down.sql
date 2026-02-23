@@ -1,1 +1,0 @@
-ALTER TABLE tickets ADD COLUMN "references" TEXT NOT NULL DEFAULT '[]';

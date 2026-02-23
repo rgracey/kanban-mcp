@@ -1,1 +1,0 @@
-ALTER TABLE tickets ADD COLUMN assignee TEXT NOT NULL DEFAULT '';
