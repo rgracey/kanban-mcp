@@ -281,13 +281,14 @@
   }
 
   const eventIcons: Record<string, string> = {
-    created:      '✦',
-    moved:        '→',
-    edited:       '✎',
-    commented:    '💬',
-    task_added:   '☐',
-    task_updated: '☑',
-    task_deleted: '✕',
+    created:        '✦',
+    moved:          '→',
+    edited:         '✎',
+    commented:      '💬',
+    comment_edited: '💬',
+    task_added:     '☐',
+    task_updated:   '☑',
+    task_deleted:   '✕',
   }
 
   function eventDescription(ev: TicketEvent): string {
@@ -306,6 +307,8 @@
       }
       case 'commented':
         return 'Comment added'
+      case 'comment_edited':
+        return 'Comment edited'
       case 'task_added':
         return p.task_title ? `Task added: "${p.task_title}"` : 'Task added'
       case 'task_updated': {

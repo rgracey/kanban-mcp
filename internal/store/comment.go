@@ -43,13 +43,15 @@ func (s *SQLiteStore) CreateComment(ctx context.Context, ticketID, body string) 
 	if err != nil {
 		return models.Comment{}, err
 	}
-	return models.Comment{
+	c := models.Comment{
 		ID:        id,
 		TicketID:  ticketID,
 		Body:      body,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
-	}, nil
+	}
+	_, _ = s.CreateTicketEvent(ctx, ticketID, models.EventCommented, "", nil)
+	return c, nil
 }
 
 // GetComment returns a comment by ID.
@@ -78,7 +80,12 @@ func (s *SQLiteStore) UpdateComment(ctx context.Context, id, body string) (model
 	if err != nil {
 		return models.Comment{}, err
 	}
-	return s.GetComment(ctx, id)
+	c, err := s.GetComment(ctx, id)
+	if err != nil {
+		return models.Comment{}, err
+	}
+	_, _ = s.CreateTicketEvent(ctx, c.TicketID, models.EventCommentEdited, "", nil)
+	return c, nil
 }
 
 // DeleteComment deletes a comment.
