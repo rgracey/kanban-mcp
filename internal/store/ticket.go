@@ -3,15 +3,56 @@ package store
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/rgracey/kanban-mcp/internal/models"
 )
 
+// marshalRefs serialises a slice of TicketReference to JSON, returning "[]" on nil/empty.
+func marshalRefs(refs []models.TicketReference) string {
+	if len(refs) == 0 {
+		return "[]"
+	}
+	b, _ := json.Marshal(refs)
+	return string(b)
+}
+
+// unmarshalRefs parses a JSON string into a slice of TicketReference.
+func unmarshalRefs(s string) []models.TicketReference {
+	if s == "" || s == "[]" {
+		return []models.TicketReference{}
+	}
+	var refs []models.TicketReference
+	_ = json.Unmarshal([]byte(s), &refs)
+	return refs
+}
+
+// marshalResolution serialises a *TicketResolution to JSON, returning nil when nil.
+func marshalResolution(r *models.TicketResolution) interface{} {
+	if r == nil {
+		return nil
+	}
+	b, _ := json.Marshal(r)
+	return string(b)
+}
+
+// unmarshalResolution parses a nullable JSON string into a *TicketResolution.
+func unmarshalResolution(ns sql.NullString) *models.TicketResolution {
+	if !ns.Valid || ns.String == "" {
+		return nil
+	}
+	var r models.TicketResolution
+	if err := json.Unmarshal([]byte(ns.String), &r); err != nil {
+		return nil
+	}
+	return &r
+}
+
 // ListTickets returns tickets for a board, filtered by the provided filter.
 func (s *SQLiteStore) ListTickets(ctx context.Context, boardID string, filter models.TicketFilter) ([]models.Ticket, error) {
-	query := `SELECT id, board_id, epic_id, title, description, status, priority, assignee, created_at, updated_at FROM tickets WHERE board_id = ?`
+	query := `SELECT id, board_id, epic_id, title, description, status, priority, assignee, "references", resolution, created_at, updated_at FROM tickets WHERE board_id = ?`
 	args := []interface{}{boardID}
 
 	// Add filters
@@ -55,15 +96,19 @@ func (s *SQLiteStore) ListTickets(ctx context.Context, boardID string, filter mo
 	for rows.Next() {
 		var t models.Ticket
 		var epicID sql.NullString
+		var refsJSON string
+		var resJSON sql.NullString
 		var createdAt, updatedAt string
 
-		if err := rows.Scan(&t.ID, &t.BoardID, &epicID, &t.Title, &t.Description, &t.Status, &t.Priority, &t.Assignee, &createdAt, &updatedAt); err != nil {
+		if err := rows.Scan(&t.ID, &t.BoardID, &epicID, &t.Title, &t.Description, &t.Status, &t.Priority, &t.Assignee, &refsJSON, &resJSON, &createdAt, &updatedAt); err != nil {
 			return nil, err
 		}
 
 		if epicID.Valid {
 			t.EpicID = &epicID.String
 		}
+		t.References = unmarshalRefs(refsJSON)
+		t.Resolution = unmarshalResolution(resJSON)
 
 		if t.CreatedAt, err = rfc3339ToTime(createdAt); err != nil {
 			return nil, err
@@ -83,14 +128,15 @@ func (s *SQLiteStore) CreateTicket(ctx context.Context, boardID string, t models
 	id := newUUID()
 	createdAt := timeToRFC3339(time.Now())
 
-	query := `INSERT INTO tickets (id, board_id, epic_id, title, description, status, priority, assignee, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	query := `INSERT INTO tickets (id, board_id, epic_id, title, description, status, priority, assignee, "references", resolution, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 	epicID := sql.NullString{}
 	if t.EpicID != nil {
 		epicID = sql.NullString{String: *t.EpicID, Valid: true}
 	}
 
-	_, err := s.db.ExecContext(ctx, query, id, boardID, epicID, t.Title, t.Description, t.Status, t.Priority, t.Assignee, createdAt, createdAt)
+	_, err := s.db.ExecContext(ctx, query, id, boardID, epicID, t.Title, t.Description, t.Status, t.Priority, t.Assignee,
+		marshalRefs(t.References), marshalResolution(t.Resolution), createdAt, createdAt)
 	if err != nil {
 		return models.Ticket{}, err
 	}
@@ -104,8 +150,13 @@ func (s *SQLiteStore) CreateTicket(ctx context.Context, boardID string, t models
 		Status:      t.Status,
 		Priority:    t.Priority,
 		Assignee:    t.Assignee,
+		References:  t.References,
+		Resolution:  t.Resolution,
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
+	}
+	if created.References == nil {
+		created.References = []models.TicketReference{}
 	}
 
 	// Emit audit event (best-effort; do not fail the create on event error)
@@ -120,12 +171,14 @@ func (s *SQLiteStore) CreateTicket(ctx context.Context, boardID string, t models
 
 // GetTicket returns a ticket by ID.
 func (s *SQLiteStore) GetTicket(ctx context.Context, id string) (models.Ticket, error) {
-	query := `SELECT id, board_id, epic_id, title, description, status, priority, assignee, created_at, updated_at FROM tickets WHERE id = ?`
+	query := `SELECT id, board_id, epic_id, title, description, status, priority, assignee, "references", resolution, created_at, updated_at FROM tickets WHERE id = ?`
 	var t models.Ticket
 	var epicID sql.NullString
+	var refsJSON string
+	var resJSON sql.NullString
 	var createdAt, updatedAt string
 
-	err := s.db.QueryRowContext(ctx, query, id).Scan(&t.ID, &t.BoardID, &epicID, &t.Title, &t.Description, &t.Status, &t.Priority, &t.Assignee, &createdAt, &updatedAt)
+	err := s.db.QueryRowContext(ctx, query, id).Scan(&t.ID, &t.BoardID, &epicID, &t.Title, &t.Description, &t.Status, &t.Priority, &t.Assignee, &refsJSON, &resJSON, &createdAt, &updatedAt)
 	if err != nil {
 		return models.Ticket{}, err
 	}
@@ -133,6 +186,8 @@ func (s *SQLiteStore) GetTicket(ctx context.Context, id string) (models.Ticket, 
 	if epicID.Valid {
 		t.EpicID = &epicID.String
 	}
+	t.References = unmarshalRefs(refsJSON)
+	t.Resolution = unmarshalResolution(resJSON)
 
 	if t.CreatedAt, err = rfc3339ToTime(createdAt); err != nil {
 		return models.Ticket{}, err
@@ -157,6 +212,8 @@ func (s *SQLiteStore) UpdateTicket(ctx context.Context, id string, fields map[st
 		"priority":    true,
 		"epic_id":     true,
 		"assignee":    true,
+		"references":  true,
+		"resolution":  true,
 	}
 
 	for key := range fields {
@@ -195,6 +252,38 @@ func (s *SQLiteStore) UpdateTicket(ctx context.Context, id string, fields map[st
 	if val, ok := fields["assignee"]; ok {
 		setClauses = append(setClauses, "assignee = ?")
 		args = append(args, val)
+	}
+	if val, ok := fields["references"]; ok {
+		// Accept either a pre-marshalled JSON string or []TicketReference
+		switch v := val.(type) {
+		case string:
+			setClauses = append(setClauses, `"references" = ?`)
+			args = append(args, v)
+		case []models.TicketReference:
+			setClauses = append(setClauses, `"references" = ?`)
+			args = append(args, marshalRefs(v))
+		default:
+			b, _ := json.Marshal(v)
+			setClauses = append(setClauses, `"references" = ?`)
+			args = append(args, string(b))
+		}
+	}
+	if val, ok := fields["resolution"]; ok {
+		switch v := val.(type) {
+		case nil:
+			setClauses = append(setClauses, "resolution = ?")
+			args = append(args, nil)
+		case string:
+			setClauses = append(setClauses, "resolution = ?")
+			args = append(args, v)
+		case *models.TicketResolution:
+			setClauses = append(setClauses, "resolution = ?")
+			args = append(args, marshalResolution(v))
+		default:
+			b, _ := json.Marshal(v)
+			setClauses = append(setClauses, "resolution = ?")
+			args = append(args, string(b))
+		}
 	}
 
 	updatedAt := timeToRFC3339(time.Now())
@@ -252,7 +341,7 @@ func (s *SQLiteStore) BulkCreateTickets(ctx context.Context, boardID string, tic
 	now := time.Now()
 	createdAt := timeToRFC3339(now)
 
-	query := `INSERT INTO tickets (id, board_id, epic_id, title, description, status, priority, assignee, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	query := `INSERT INTO tickets (id, board_id, epic_id, title, description, status, priority, assignee, "references", resolution, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 	created := make([]models.Ticket, 0, len(tickets))
 	for _, t := range tickets {
@@ -267,10 +356,11 @@ func (s *SQLiteStore) BulkCreateTickets(ctx context.Context, boardID string, tic
 		if t.Priority == "" {
 			t.Priority = models.PriorityMedium
 		}
-		if _, err := tx.ExecContext(ctx, query, id, boardID, epicID, t.Title, t.Description, t.Status, t.Priority, t.Assignee, createdAt, createdAt); err != nil {
+		if _, err := tx.ExecContext(ctx, query, id, boardID, epicID, t.Title, t.Description, t.Status, t.Priority, t.Assignee,
+			marshalRefs(t.References), marshalResolution(t.Resolution), createdAt, createdAt); err != nil {
 			return nil, err
 		}
-		created = append(created, models.Ticket{
+		tc := models.Ticket{
 			ID:          id,
 			BoardID:     boardID,
 			EpicID:      t.EpicID,
@@ -279,9 +369,15 @@ func (s *SQLiteStore) BulkCreateTickets(ctx context.Context, boardID string, tic
 			Status:      t.Status,
 			Priority:    t.Priority,
 			Assignee:    t.Assignee,
+			References:  t.References,
+			Resolution:  t.Resolution,
 			CreatedAt:   now,
 			UpdatedAt:   now,
-		})
+		}
+		if tc.References == nil {
+			tc.References = []models.TicketReference{}
+		}
+		created = append(created, tc)
 	}
 
 	if err := tx.Commit(); err != nil {

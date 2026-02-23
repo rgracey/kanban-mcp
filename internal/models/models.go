@@ -2,6 +2,31 @@ package models
 
 import "time"
 
+// TicketReferenceKind classifies what a code reference points to.
+type TicketReferenceKind string
+
+const (
+	RefKindFile   TicketReferenceKind = "file"   // file path, optionally with :line
+	RefKindURL    TicketReferenceKind = "url"    // any URL
+	RefKindPR     TicketReferenceKind = "pr"     // pull-request URL
+	RefKindCommit TicketReferenceKind = "commit" // commit SHA or URL
+)
+
+// TicketReference is a structured pointer from a ticket to a code artifact.
+type TicketReference struct {
+	Kind   TicketReferenceKind `json:"kind"`            // "file" | "url" | "pr" | "commit"
+	Target string              `json:"target"`          // e.g. "src/api/handler.go:142" or "https://..."
+	Label  string              `json:"label,omitempty"` // optional human-readable label
+}
+
+// TicketResolution is written by an agent when it closes a ticket.
+type TicketResolution struct {
+	CommitSHA  string `json:"commit_sha,omitempty"`
+	PRURL      string `json:"pr_url,omitempty"`
+	Notes      string `json:"notes,omitempty"`
+	ResolvedAt string `json:"resolved_at,omitempty"` // RFC3339
+}
+
 type Status string
 
 const (
@@ -37,16 +62,18 @@ type Epic struct {
 }
 
 type Ticket struct {
-	ID          string    `json:"id"`
-	BoardID     string    `json:"board_id"`
-	EpicID      *string   `json:"epic_id"`
-	Title       string    `json:"title"`
-	Description string    `json:"description"`
-	Status      Status    `json:"status"`
-	Priority    Priority  `json:"priority"`
-	Assignee    string    `json:"assignee"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID          string            `json:"id"`
+	BoardID     string            `json:"board_id"`
+	EpicID      *string           `json:"epic_id"`
+	Title       string            `json:"title"`
+	Description string            `json:"description"`
+	Status      Status            `json:"status"`
+	Priority    Priority          `json:"priority"`
+	Assignee    string            `json:"assignee"`
+	References  []TicketReference `json:"references"`
+	Resolution  *TicketResolution `json:"resolution,omitempty"`
+	CreatedAt   time.Time         `json:"created_at"`
+	UpdatedAt   time.Time         `json:"updated_at"`
 }
 
 type Comment struct {

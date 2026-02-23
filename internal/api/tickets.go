@@ -13,12 +13,14 @@ import (
 
 // TicketRequest represents the request body for ticket creation/update
 type TicketRequest struct {
-	Title       string  `json:"title"`
-	Description string  `json:"description"`
-	Status      *string `json:"status"`
-	Priority    *string `json:"priority"`
-	EpicID      *string `json:"epic_id"`
-	Assignee    *string `json:"assignee"`
+	Title       string                   `json:"title"`
+	Description string                   `json:"description"`
+	Status      *string                  `json:"status"`
+	Priority    *string                  `json:"priority"`
+	EpicID      *string                  `json:"epic_id"`
+	Assignee    *string                  `json:"assignee"`
+	References  []models.TicketReference `json:"references"`
+	Resolution  *models.TicketResolution `json:"resolution"`
 }
 
 // ListTickets returns tickets for a board
@@ -131,6 +133,8 @@ func CreateTicket(s store.Store, hub *Hub) http.HandlerFunc {
 			Status:      status,
 			Priority:    priority,
 			Assignee:    assignee,
+			References:  req.References,
+			Resolution:  req.Resolution,
 		}
 
 		ticket, err := s.CreateTicket(r.Context(), boardID, ticket)
@@ -254,6 +258,17 @@ func UpdateTicket(s store.Store, hub *Hub) http.HandlerFunc {
 				return
 			}
 			fields["assignee"] = s
+		}
+		if v, ok := raw["references"]; ok {
+			// Pass the raw JSON string; the store will unmarshal/validate it
+			fields["references"] = string(v)
+		}
+		if v, ok := raw["resolution"]; ok {
+			if string(v) == "null" {
+				fields["resolution"] = nil
+			} else {
+				fields["resolution"] = string(v)
+			}
 		}
 
 		ticket, err := s.UpdateTicket(r.Context(), id, fields)

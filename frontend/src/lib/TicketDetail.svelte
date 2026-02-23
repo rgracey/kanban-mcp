@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Ticket, Epic, Comment, Task, TicketEvent, TicketRelation } from "./types.js";
+  import type { Ticket, Epic, Comment, Task, TicketEvent, TicketRelation, TicketReference, TicketResolution } from "./types.js";
   import {
     getTicket,
     updateTicket,
@@ -54,7 +54,14 @@
   let draftStatus = $state("");
   let draftPriority = $state("");
   let draftEpicId = $state("");
+  let draftReferences = $state<TicketReference[]>([]);
+  let draftResolution = $state<TicketResolution | null>(null);
   let editingDescription = $state(false);
+
+  // --- reference editing ---
+  let newRefKind = $state<TicketReference['kind']>('file');
+  let newRefTarget = $state('');
+  let newRefLabel = $state('');
 
   // --- pending new tasks (saved on Save button) ---
   let pendingTasks = $state<string[]>([]); // titles not yet persisted
@@ -117,6 +124,8 @@
       draftStatus = untrack(() => t.status);
       draftPriority = untrack(() => t.priority);
       draftEpicId = untrack(() => t.epic_id ?? "");
+      draftReferences = untrack(() => [...(t.references ?? [])]);
+      draftResolution = untrack(() => t.resolution ? { ...t.resolution } : null);
     } catch (e) {
       loadError = e instanceof Error ? e.message : "Failed to load ticket";
       toast.error(loadError);
@@ -142,6 +151,8 @@
         draftStatus !== ticket.status ||
         draftPriority !== ticket.priority ||
         draftEpicId !== (ticket.epic_id ?? "") ||
+        JSON.stringify(draftReferences) !== JSON.stringify(ticket.references ?? []) ||
+        JSON.stringify(draftResolution) !== JSON.stringify(ticket.resolution ?? null) ||
         pendingTasks.length > 0),
   );
 
@@ -158,6 +169,10 @@
       if (draftStatus !== ticket.status) patch.status = draftStatus as Ticket["status"];
       if (draftPriority !== ticket.priority) patch.priority = draftPriority as Ticket["priority"];
       if ((draftEpicId || null) !== ticket.epic_id) patch.epic_id = draftEpicId || null;
+      if (JSON.stringify(draftReferences) !== JSON.stringify(ticket.references ?? []))
+        patch.references = draftReferences;
+      if (JSON.stringify(draftResolution) !== JSON.stringify(ticket.resolution ?? null))
+        patch.resolution = draftResolution;
 
       const updated = Object.keys(patch).length > 0 ? await updateTicket(ticket.id, patch) : ticket;
       ticket = updated;
@@ -167,6 +182,8 @@
       draftStatus = updated.status;
       draftPriority = updated.priority;
       draftEpicId = updated.epic_id ?? "";
+      draftReferences = [...(updated.references ?? [])];
+      draftResolution = updated.resolution ? { ...updated.resolution } : null;
       editingDescription = false;
       onupdate?.(updated);
 
@@ -487,6 +504,151 @@
         <div>
           <label for="td-assignee" class={labelCls}>Assignee</label>
           <input id="td-assignee" class={inputCls} placeholder="Unassigned" bind:value={draftAssignee} />
+        </div>
+
+        <!-- Code References -->
+        <div class={sectionCls}>
+          <h3 class={labelCls}>Code References</h3>
+
+          {#if draftReferences.length > 0}
+            <ul class="space-y-1.5 mb-2">
+              {#each draftReferences as ref, i}
+                <li class="flex items-center gap-2 group text-sm">
+                  <span class="shrink-0 text-[11px] font-semibold px-1.5 py-0.5 rounded-md
+                    {ref.kind === 'file'   ? 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400' :
+                     ref.kind === 'pr'     ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300' :
+                     ref.kind === 'commit' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400' :
+                                            'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-400'}">
+                    {ref.kind}
+                  </span>
+                  {#if ref.kind === 'file'}
+                    <code class="flex-1 text-xs font-mono text-gray-700 dark:text-gray-300 truncate">{ref.target}</code>
+                  {:else}
+                    <a
+                      href={ref.target}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="flex-1 text-xs text-indigo-600 dark:text-indigo-400 hover:underline truncate"
+                    >{ref.label || ref.target}</a>
+                  {/if}
+                  {#if ref.label && ref.kind === 'file'}
+                    <span class="text-xs text-gray-400 shrink-0">{ref.label}</span>
+                  {/if}
+                  <button
+                    class="text-gray-300 dark:text-gray-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                    onclick={() => { draftReferences = draftReferences.filter((_, idx) => idx !== i) }}
+                    aria-label="Remove reference"
+                  >
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </li>
+              {/each}
+            </ul>
+          {:else}
+            <p class="text-xs text-gray-400 dark:text-gray-500 italic mb-2">No references.</p>
+          {/if}
+
+          <!-- Add reference row -->
+          <div class="flex gap-2 flex-wrap">
+            <select
+              class="shrink-0 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              bind:value={newRefKind}
+            >
+              <option value="file">file</option>
+              <option value="url">url</option>
+              <option value="pr">pr</option>
+              <option value="commit">commit</option>
+            </select>
+            <input
+              class="flex-1 min-w-0 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-lg px-2 py-1.5 text-xs placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
+              placeholder={newRefKind === 'file' ? 'src/handler.go:42' : 'https://...'}
+              bind:value={newRefTarget}
+              onkeydown={(e) => { if (e.key === 'Enter' && newRefTarget.trim()) {
+                draftReferences = [...draftReferences, { kind: newRefKind, target: newRefTarget.trim(), label: newRefLabel.trim() || undefined }]
+                newRefTarget = ''; newRefLabel = '';
+              }}}
+            />
+            <input
+              class="w-28 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-lg px-2 py-1.5 text-xs placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              placeholder="label (opt)"
+              bind:value={newRefLabel}
+            />
+            <button
+              class="px-3 py-1.5 text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-40 transition-colors"
+              onclick={() => {
+                if (!newRefTarget.trim()) return;
+                draftReferences = [...draftReferences, { kind: newRefKind, target: newRefTarget.trim(), label: newRefLabel.trim() || undefined }];
+                newRefTarget = ''; newRefLabel = '';
+              }}
+              disabled={!newRefTarget.trim()}
+            >Add</button>
+          </div>
+        </div>
+
+        <!-- Resolution -->
+        <div class={sectionCls}>
+          <div class="flex items-center justify-between mb-2">
+            <h3 class={labelCls} style="margin-bottom:0">Resolution</h3>
+            {#if !draftResolution}
+              <button
+                class="text-xs font-medium text-indigo-500 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 transition-colors"
+                onclick={() => { draftResolution = { commit_sha: '', pr_url: '', notes: '', resolved_at: '' } }}
+              >+ Record resolution</button>
+            {:else}
+              <button
+                class="text-xs font-medium text-red-400 hover:text-red-600 transition-colors"
+                onclick={() => { draftResolution = null }}
+              >Clear</button>
+            {/if}
+          </div>
+
+          {#if draftResolution}
+            <div class="space-y-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-3">
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label for="res-commit" class="block text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1">Commit SHA</label>
+                  <input
+                    id="res-commit"
+                    class="w-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-lg px-2 py-1.5 text-xs font-mono placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="abc1234"
+                    bind:value={draftResolution.commit_sha}
+                  />
+                </div>
+                <div>
+                  <label for="res-pr" class="block text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1">PR URL</label>
+                  <input
+                    id="res-pr"
+                    class="w-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-lg px-2 py-1.5 text-xs placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="https://github.com/..."
+                    bind:value={draftResolution.pr_url}
+                  />
+                </div>
+              </div>
+              <div>
+                <label for="res-notes" class="block text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1">Notes</label>
+                <textarea
+                  id="res-notes"
+                  class="w-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-lg px-2 py-1.5 text-xs placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                  rows="2"
+                  placeholder="What was done, how it was fixed…"
+                  bind:value={draftResolution.notes}
+                ></textarea>
+              </div>
+              <div>
+                <label for="res-resolved-at" class="block text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1">Resolved at (RFC3339)</label>
+                <input
+                  id="res-resolved-at"
+                  class="w-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-lg px-2 py-1.5 text-xs font-mono placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="2026-01-01T00:00:00Z"
+                  bind:value={draftResolution.resolved_at}
+                />
+              </div>
+            </div>
+          {:else}
+            <p class="text-xs text-gray-400 dark:text-gray-500 italic">No resolution recorded.</p>
+          {/if}
         </div>
 
         <!-- Description -->

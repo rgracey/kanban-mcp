@@ -253,6 +253,8 @@ func registerTools(srv *server.MCPServer, s store.Store) {
 			mcpgo.WithBoolean("include_comments", mcpgo.Description("Embed comments (get)")),
 			mcpgo.WithBoolean("include_history", mcpgo.Description("Embed audit history (get)")),
 			mcpgo.WithString("tickets_json", mcpgo.Description(`JSON array of ticket objects for bulk_create, e.g. [{"title":"T1","priority":"high"},{"title":"T2"}]`)),
+			mcpgo.WithString("references_json", mcpgo.Description(`JSON array of code references for create/update, e.g. [{"kind":"file","target":"src/api/handler.go:42","label":"handler"},{"kind":"pr","target":"https://github.com/..."}]`)),
+			mcpgo.WithString("resolution_json", mcpgo.Description(`JSON object to record resolution for update, e.g. {"commit_sha":"abc123","pr_url":"https://...","notes":"Fixed by ...","resolved_at":"2026-01-01T00:00:00Z"}. Pass "null" to clear.`)),
 		),
 		func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 			action, err := req.RequireString("action")
@@ -345,6 +347,20 @@ func registerTools(srv *server.MCPServer, s store.Store) {
 				if v := getString("epic_id"); v != "" {
 					t.EpicID = &v
 				}
+				if raw := getString("references_json"); raw != "" {
+					var refs []models.TicketReference
+					if err := json.Unmarshal([]byte(raw), &refs); err != nil {
+						return mcpgo.NewToolResultError("references_json is not valid JSON: " + err.Error()), nil
+					}
+					t.References = refs
+				}
+				if raw := getString("resolution_json"); raw != "" && raw != "null" {
+					var res models.TicketResolution
+					if err := json.Unmarshal([]byte(raw), &res); err != nil {
+						return mcpgo.NewToolResultError("resolution_json is not valid JSON: " + err.Error()), nil
+					}
+					t.Resolution = &res
+				}
 				ticket, err := s.CreateTicket(ctx, boardID, t)
 				if err != nil {
 					return mcpgo.NewToolResultError(err.Error()), nil
@@ -360,6 +376,16 @@ func registerTools(srv *server.MCPServer, s store.Store) {
 				for _, k := range []string{"title", "description", "status", "priority", "epic_id", "assignee"} {
 					if v, ok := args[k]; ok {
 						fields[k] = v
+					}
+				}
+				if raw := getString("references_json"); raw != "" {
+					fields["references"] = raw
+				}
+				if raw := getString("resolution_json"); raw != "" {
+					if raw == "null" {
+						fields["resolution"] = nil
+					} else {
+						fields["resolution"] = raw
 					}
 				}
 				ticket, err := s.UpdateTicket(ctx, id, fields)

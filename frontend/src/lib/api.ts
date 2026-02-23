@@ -47,7 +47,7 @@ export const listTickets = (boardId: string, filter?: TicketFilter) => {
 export const createTicket = (boardId: string, data: Partial<Ticket> & { title: string }) =>
   request<Ticket>(`/boards/${boardId}/tickets`, { method: 'POST', body: JSON.stringify(data) })
 export const getTicket = (id: string) => request<Ticket>(`/tickets/${id}`)
-export const updateTicket = (id: string, fields: Partial<Pick<Ticket, 'title' | 'description' | 'status' | 'priority' | 'epic_id' | 'assignee'>>) =>
+export const updateTicket = (id: string, fields: Partial<Pick<Ticket, 'title' | 'description' | 'status' | 'priority' | 'epic_id' | 'assignee' | 'references' | 'resolution'>>) =>
   request<Ticket>(`/tickets/${id}`, { method: 'PUT', body: JSON.stringify(fields) })
 export const deleteTicket = (id: string) => request<void>(`/tickets/${id}`, { method: 'DELETE' })
 
