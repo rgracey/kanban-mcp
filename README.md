@@ -54,18 +54,10 @@ xattr -d com.apple.quarantine ./kanban-mcp
 ./kanban-mcp
 ```
 
-Or install with Go:
-
+Or build from source:
 **Prerequisites**
 
 - [Go](https://go.dev/dl/) 1.22 or later
-
-```sh
-go install github.com/rgracey/kanban-mcp@latest
-kanban-mcp
-```
-
-Or build from source:
 
 ```sh
 git clone https://github.com/rgracey/kanban-mcp
