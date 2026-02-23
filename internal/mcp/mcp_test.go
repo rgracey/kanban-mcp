@@ -48,6 +48,19 @@ func decodeResult(t *testing.T, result *mcpgo.CallToolResult, v any) {
 	require.NoError(t, json.Unmarshal([]byte(text.Text), v))
 }
 
+// decodeListResult unmarshals a list tool result (wrapped as {"items":[...]}) into a slice pointer.
+func decodeListResult[T any](t *testing.T, result *mcpgo.CallToolResult) []T {
+	t.Helper()
+	var envelope struct {
+		Items []T `json:"items"`
+	}
+	decodeResult(t, result, &envelope)
+	if envelope.Items == nil {
+		return []T{}
+	}
+	return envelope.Items
+}
+
 // TestAllToolsRegistered verifies all tools are present.
 func TestAllToolsRegistered(t *testing.T) {
 	srv := setupServer(t)
@@ -79,8 +92,7 @@ func TestBoardCRUD(t *testing.T) {
 
 	// list
 	listRes := call(t, srv, "board", map[string]any{"action": "list"})
-	var boards []models.Board
-	decodeResult(t, listRes, &boards)
+	boards := decodeListResult[models.Board](t, listRes)
 	require.Len(t, boards, 1)
 	assert.Equal(t, created.ID, boards[0].ID)
 
@@ -101,8 +113,7 @@ func TestBoardCRUD(t *testing.T) {
 	require.False(t, delRes.IsError)
 
 	listRes2 := call(t, srv, "board", map[string]any{"action": "list"})
-	var boards2 []models.Board
-	decodeResult(t, listRes2, &boards2)
+	boards2 := decodeListResult[models.Board](t, listRes2)
 	assert.Empty(t, boards2)
 }
 
@@ -120,8 +131,7 @@ func TestEpicCRUD(t *testing.T) {
 	assert.Equal(t, "E1", epic.Title)
 
 	listRes := call(t, srv, "epic", map[string]any{"action": "list", "board_id": board.ID})
-	var epics []models.Epic
-	decodeResult(t, listRes, &epics)
+	epics := decodeListResult[models.Epic](t, listRes)
 	require.Len(t, epics, 1)
 
 	updRes := call(t, srv, "epic", map[string]any{"action": "update", "id": epic.ID, "title": "E1-updated"})
@@ -168,8 +178,7 @@ func TestTicketWorkflow(t *testing.T) {
 		"board_id":      board.ID,
 		"filter_status": "in_progress",
 	})
-	var tickets []models.Ticket
-	decodeResult(t, listRes, &tickets)
+	tickets := decodeListResult[models.Ticket](t, listRes)
 	require.Len(t, tickets, 1)
 	assert.Equal(t, ticket.ID, tickets[0].ID)
 
@@ -179,8 +188,7 @@ func TestTicketWorkflow(t *testing.T) {
 		"board_id":      board.ID,
 		"filter_status": "todo",
 	})
-	var todoTickets []models.Ticket
-	decodeResult(t, listTodoRes, &todoTickets)
+	todoTickets := decodeListResult[models.Ticket](t, listTodoRes)
 	assert.Empty(t, todoTickets)
 
 	// update fields
@@ -235,8 +243,7 @@ func TestNoteCRUD(t *testing.T) {
 
 	// list
 	listRes := call(t, srv, "note", map[string]any{"action": "list", "ticket_id": ticket.ID})
-	var notes []models.Note
-	decodeResult(t, listRes, &notes)
+	notes := decodeListResult[models.Note](t, listRes)
 	require.Len(t, notes, 1)
 
 	// update
@@ -254,8 +261,7 @@ func TestNoteCRUD(t *testing.T) {
 	assert.False(t, delRes.IsError)
 
 	listRes2 := call(t, srv, "note", map[string]any{"action": "list", "ticket_id": ticket.ID})
-	var notes2 []models.Note
-	decodeResult(t, listRes2, &notes2)
+	notes2 := decodeListResult[models.Note](t, listRes2)
 	assert.Empty(t, notes2)
 }
 
@@ -288,8 +294,7 @@ func TestTaskCRUD(t *testing.T) {
 
 	// list
 	listRes := call(t, srv, "task", map[string]any{"action": "list", "ticket_id": ticket.ID})
-	var tasks []models.Task
-	decodeResult(t, listRes, &tasks)
+	tasks := decodeListResult[models.Task](t, listRes)
 	require.Len(t, tasks, 1)
 
 	// update (mark done)
@@ -307,8 +312,7 @@ func TestTaskCRUD(t *testing.T) {
 	assert.False(t, delRes.IsError)
 
 	listRes2 := call(t, srv, "task", map[string]any{"action": "list", "ticket_id": ticket.ID})
-	var tasks2 []models.Task
-	decodeResult(t, listRes2, &tasks2)
+	tasks2 := decodeListResult[models.Task](t, listRes2)
 	assert.Empty(t, tasks2)
 }
 
@@ -329,8 +333,7 @@ func TestTicketHistory(t *testing.T) {
 	decodeResult(t, ticketRes, &ticket)
 
 	histRes := call(t, srv, "ticket", map[string]any{"action": "history", "id": ticket.ID})
-	var events []models.TicketEvent
-	decodeResult(t, histRes, &events)
+	events := decodeListResult[models.TicketEvent](t, histRes)
 	// At minimum a "created" event should exist
 	require.NotEmpty(t, events)
 }

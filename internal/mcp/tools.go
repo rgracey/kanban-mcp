@@ -41,7 +41,7 @@ func registerTools(srv *server.MCPServer, s store.Store) {
 				if err != nil {
 					return mcpgo.NewToolResultError(err.Error()), nil
 				}
-				return jsonResult(boards)
+				return jsonListResult(boards)
 
 			case "get":
 				id := getString("id")
@@ -129,7 +129,7 @@ func registerTools(srv *server.MCPServer, s store.Store) {
 				if err != nil {
 					return mcpgo.NewToolResultError(err.Error()), nil
 				}
-				return jsonResult(tickets)
+				return jsonListResult(tickets)
 
 			default:
 				return mcpgo.NewToolResultError(fmt.Sprintf("unknown action %q", action)), nil
@@ -170,7 +170,7 @@ func registerTools(srv *server.MCPServer, s store.Store) {
 				if err != nil {
 					return mcpgo.NewToolResultError(err.Error()), nil
 				}
-				return jsonResult(epics)
+				return jsonListResult(epics)
 
 			case "get":
 				id := getString("id")
@@ -298,7 +298,7 @@ func registerTools(srv *server.MCPServer, s store.Store) {
 				if err != nil {
 					return mcpgo.NewToolResultError(err.Error()), nil
 				}
-				return jsonResult(tickets)
+				return jsonListResult(tickets)
 
 			case "get":
 				id := getString("id")
@@ -461,7 +461,7 @@ func registerTools(srv *server.MCPServer, s store.Store) {
 				if err != nil {
 					return mcpgo.NewToolResultError(err.Error()), nil
 				}
-				return jsonResult(created)
+				return jsonListResult(created)
 
 			case "history":
 				id := getString("id")
@@ -472,7 +472,7 @@ func registerTools(srv *server.MCPServer, s store.Store) {
 				if err != nil {
 					return mcpgo.NewToolResultError(err.Error()), nil
 				}
-				return jsonResult(events)
+				return jsonListResult(events)
 
 			default:
 				return mcpgo.NewToolResultError(fmt.Sprintf("unknown action %q", action)), nil
@@ -513,7 +513,7 @@ func registerTools(srv *server.MCPServer, s store.Store) {
 				if err != nil {
 					return mcpgo.NewToolResultError(err.Error()), nil
 				}
-				return jsonResult(tasks)
+				return jsonListResult(tasks)
 
 			case "create":
 				ticketID := getString("ticket_id")
@@ -594,7 +594,7 @@ func registerTools(srv *server.MCPServer, s store.Store) {
 				if err != nil {
 					return mcpgo.NewToolResultError(err.Error()), nil
 				}
-				return jsonResult(notes)
+				return jsonListResult(notes)
 
 			case "add":
 				ticketID := getString("ticket_id")
@@ -667,7 +667,7 @@ func registerTools(srv *server.MCPServer, s store.Store) {
 				if err != nil {
 					return mcpgo.NewToolResultError(err.Error()), nil
 				}
-				return jsonResult(relations)
+				return jsonListResult(relations)
 
 			case "add":
 				fromID := getString("ticket_id")

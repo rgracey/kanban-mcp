@@ -30,11 +30,18 @@ func StartStdio(srv *server.MCPServer) error {
 	return server.NewStdioServer(srv).Listen(context.Background(), os.Stdin, os.Stdout)
 }
 
-// jsonResult marshals v to JSON and returns a text tool result.
+// jsonResult marshals v to JSON and returns a structured tool result.
+// v must be a JSON object (map or struct); use jsonListResult for slices.
 func jsonResult(v any) (*mcpgo.CallToolResult, error) {
 	result, err := mcpgo.NewToolResultJSON(v)
 	if err != nil {
 		return mcpgo.NewToolResultError(err.Error()), nil
 	}
 	return result, nil
+}
+
+// jsonListResult wraps a slice in {"items": [...]} so that structuredContent
+// is always a JSON object, which is required by the MCP spec.
+func jsonListResult(items any) (*mcpgo.CallToolResult, error) {
+	return jsonResult(map[string]any{"items": items})
 }
