@@ -14,6 +14,10 @@ type TaskRequest struct {
 	Done  *bool  `json:"done"`
 }
 
+type BulkTaskRequest struct {
+	Titles []string `json:"titles"`
+}
+
 // ListTasks returns all tasks for a ticket.
 func ListTasks(s store.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -72,6 +76,52 @@ func CreateTask(s store.Store, hub *Hub) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
 		json.NewEncoder(w).Encode(task)
+	}
+}
+
+// BulkCreateTasks creates multiple tasks for a ticket in one request.
+// Route: POST /tickets/{id}/tasks/bulk
+func BulkCreateTasks(s store.Store, hub *Hub) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := chi.URLParam(r, "id")
+		ticket, err := s.GetTicket(r.Context(), id)
+		if err != nil {
+			if isNotFoundError(err) {
+				http.Error(w, `{"error": "not found"}`, http.StatusNotFound)
+				return
+			}
+			http.Error(w, `{"error": "internal server error"}`, http.StatusInternalServerError)
+			return
+		}
+
+		var req BulkTaskRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, `{"error": "invalid JSON"}`, http.StatusBadRequest)
+			return
+		}
+
+		// Filter out blank titles
+		titles := make([]string, 0, len(req.Titles))
+		for _, t := range req.Titles {
+			if trimmed := strings.TrimSpace(t); trimmed != "" {
+				titles = append(titles, trimmed)
+			}
+		}
+		if len(titles) == 0 {
+			http.Error(w, `{"error": "titles must contain at least one non-empty string"}`, http.StatusBadRequest)
+			return
+		}
+
+		tasks, err := s.BulkCreateTasks(r.Context(), id, titles)
+		if err != nil {
+			http.Error(w, `{"error": "internal server error"}`, http.StatusInternalServerError)
+			return
+		}
+
+		hub.Publish(SSEEvent{Type: "task.created", BoardID: ticket.BoardID})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(tasks)
 	}
 }
 

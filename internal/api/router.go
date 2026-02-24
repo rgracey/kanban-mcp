@@ -98,6 +98,7 @@ func NewAPIRouter(r chi.Router, s store.Store, hub *Hub) {
 			r.Get("/events", ListTicketEvents(s))
 			r.Get("/tasks", ListTasks(s))
 			r.Post("/tasks", CreateTask(s, hub))
+			r.Post("/tasks/bulk", BulkCreateTasks(s, hub))
 			r.Get("/relations", ListRelations(s))
 			r.Post("/relations", AddRelation(s))
 			r.Delete("/relations/{toId}", DeleteRelation(s))

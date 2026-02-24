@@ -502,11 +502,12 @@ func registerTools(srv *server.MCPServer, s store.Store) {
 	// -------------------------------------------------------------------------
 	srv.AddTool(
 		mcpgo.NewTool("task",
-			mcpgo.WithDescription("Manage checklist tasks on a ticket. action: list, create, update, delete"),
-			mcpgo.WithString("action", mcpgo.Required(), mcpgo.Description("list|create|update|delete")),
+			mcpgo.WithDescription("Manage checklist tasks on a ticket. action: list, create, bulk_create, update, delete"),
+			mcpgo.WithString("action", mcpgo.Required(), mcpgo.Description("list|create|bulk_create|update|delete")),
 			mcpgo.WithString("id", mcpgo.Description("Task ID (update/delete)")),
-			mcpgo.WithString("ticket_id", mcpgo.Description("Ticket ID (list/create)")),
+			mcpgo.WithString("ticket_id", mcpgo.Description("Ticket ID (list/create/bulk_create)")),
 			mcpgo.WithString("title", mcpgo.Description("Task title (create/update)")),
+			mcpgo.WithString("titles_json", mcpgo.Description(`JSON array of task titles for bulk_create, e.g. ["Task A","Task B"]`)),
 			mcpgo.WithBoolean("done", mcpgo.Description("Mark done/undone (update)")),
 		),
 		func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
@@ -543,6 +544,22 @@ func registerTools(srv *server.MCPServer, s store.Store) {
 					return mcpgo.NewToolResultError(err.Error()), nil
 				}
 				return jsonResult(task)
+
+			case "bulk_create":
+				ticketID := getString("ticket_id")
+				titlesJSON := getString("titles_json")
+				if ticketID == "" || titlesJSON == "" {
+					return mcpgo.NewToolResultError("ticket_id and titles_json required"), nil
+				}
+				var titles []string
+				if err := json.Unmarshal([]byte(titlesJSON), &titles); err != nil {
+					return mcpgo.NewToolResultError("titles_json must be a JSON array of strings: " + err.Error()), nil
+				}
+				tasks, err := s.BulkCreateTasks(ctx, ticketID, titles)
+				if err != nil {
+					return mcpgo.NewToolResultError(err.Error()), nil
+				}
+				return jsonListResult(tasks)
 
 			case "update":
 				id := getString("id")

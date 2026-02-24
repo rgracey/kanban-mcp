@@ -70,6 +70,18 @@ func (s *SQLiteStore) CreateTask(ctx context.Context, ticketID, title string) (m
 	}, nil
 }
 
+func (s *SQLiteStore) BulkCreateTasks(ctx context.Context, ticketID string, titles []string) ([]models.Task, error) {
+	created := make([]models.Task, 0, len(titles))
+	for _, title := range titles {
+		task, err := s.CreateTask(ctx, ticketID, title)
+		if err != nil {
+			return created, err
+		}
+		created = append(created, task)
+	}
+	return created, nil
+}
+
 func (s *SQLiteStore) UpdateTask(ctx context.Context, id string, title *string, done *bool) (models.Task, error) {
 	now := timeToRFC3339(time.Now())
 

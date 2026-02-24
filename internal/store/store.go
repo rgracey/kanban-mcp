@@ -44,6 +44,7 @@ type Store interface {
 	// Tasks
 	ListTasks(ctx context.Context, ticketID string) ([]models.Task, error)
 	CreateTask(ctx context.Context, ticketID, title string) (models.Task, error)
+	BulkCreateTasks(ctx context.Context, ticketID string, titles []string) ([]models.Task, error)
 	UpdateTask(ctx context.Context, id string, title *string, done *bool) (models.Task, error)
 	DeleteTask(ctx context.Context, id string) error
 
