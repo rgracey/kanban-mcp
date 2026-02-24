@@ -1,60 +1,132 @@
 # kanban-mcp
 
-<img src="docs/images/kanban_logo.png" width="350">
+![GitHub Release](https://img.shields.io/github/v/release/rgracey/kanban-mcp)
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/rgracey/kanban-mcp/ci.yml)
+![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/rgracey/kanban-mcp)
 
-A self-contained kanban board server that works for both humans and AI agents.
+Single-binary lightweight Kanban board with native MCP support — perfect local task memory AI coding agents
 
-It ships as a single Go binary with no external dependencies: SQLite is embedded, the web UI is embedded, and the MCP server runs alongside the REST API on the same process. Spin it up and everything is immediately available.
 ![Kanban board screenshot](docs/images/screenshot.png)
 
 ---
 
-## What it does
+## How to use
 
-**For humans** — a visual kanban board accessible in any browser. Boards, epics, tickets with markdown descriptions, checklists, notes, assignees, priority levels, and a per-ticket audit history showing every change over time.
+<details>
+<summary>Common ways to use kanban-mcp</summary>
 
-**For AI agents** — a full [Model Context Protocol](https://modelcontextprotocol.io) (MCP) server. Claude (and any other MCP-compatible client) can create boards, manage tickets, write notes, check off tasks, and inspect history — all through natural conversation. The same data store backs both interfaces, so changes made by an agent are immediately visible in the UI, and vice versa.
+### 1. Break down ideas into actionable tickets (planning phase)
 
----
+Tell your AI agent your goal/idea in natural language. Once it's been discussed ask to break it down into tickets.
 
-## Why
+**Example prompt**:
 
-Most project management tools are either too heavy to self-host or have no machine-readable interface. kanban-mcp is designed to be the task layer that an AI coding agent actually uses — lightweight enough to run locally alongside your editor, with an MCP interface that exposes the full ticket lifecycle rather than a read-only view.
-
----
-
-## Features
-
-- **Boards, epics, and tickets** with status (`todo` / `in progress` / `done`) and priority (`low` / `medium` / `high` / `critical`)
-- **Checklists** — per-ticket task lists with progress tracking
-- **Notes** — agent scratchpad notes on tickets, with edit support
-- **Blocking relations** — tickets can block other tickets; `ready` action returns unblocked work
-- **Bulk create** — create multiple tickets in a single call
-- **Assignees** — free-text assignee field per ticket
-- **Markdown** rendering in ticket descriptions
-- **Audit history** — every create, edit, move, note, and task change is recorded and shown in a timeline on the ticket
-- **Real-time updates** — the UI reacts to changes via Server-Sent Events (no polling, no refresh required)
-- **Dark mode** — user toggle, persisted in localStorage
-- **MCP server** — 6 action-dispatched tools covering the full data model (see [MCP tools](#mcp-tools) below)
-- **Zero external dependencies** — SQLite, frontend assets, and MCP all embedded in one binary
-
----
-
-## Quick start
-
-### Download and run
-
-Download a pre-built binary from [GitHub Releases](https://github.com/rgracey/kanban-mcp/releases):
-
-```sh
-# macOS (Apple Silicon)
-curl -sL https://github.com/rgracey/kanban-mcp/releases/latest/download/kanban-mcp-darwin-arm64 -o kanban-mcp
-chmod +x kanban-mcp
-xattr -d com.apple.quarantine ./kanban-mcp
-./kanban-mcp
+```
+Using board XYZ, add an epic for ABC and break down the work into tickets with tasks
 ```
 
-Or build from source:
+### 2. Let your agent work (Execution phase)
+
+Once tickets exist, hand over control.
+
+**Example prompt**:
+
+```
+Review the "XYZ" board.
+Focus on ready, unblocked tickets (use the 'ready' action).
+Start working on the highest-priority ticket:
+- Take notes on decisions/progress
+- Check off completed tasks
+- Update status to "in progress" → "done" when finished
+- Record resolution details (commit SHA, PR link, etc.)
+
+Loop until no ready tickets remain or you hit a blocker.
+```
+
+---
+
+### Further prompts
+
+You can talk in natural language and the AI agent will understand what you want to do
+
+```
+Create a board called Customer Analytics
+---
+Add a new epic for user authentication
+---
+Create tickets from what we've discussed
+---
+What should we work on next?
+---
+Keep working on the use endpoint API ticket
+```
+
+</details>
+
+## Quick Start
+
+### Download
+
+Download a pre-built binary for your platfrom from the [releases](https://github.com/rgracey/kanban-mcp/releases) or use your terminal:
+
+<details>
+<summary>MacOS</summary>
+
+**Note**: The binary is currently not signed, so it must be removed from quarantined
+
+**Apple Silicon**
+
+```sh
+curl -fsSL https://github.com/rgracey/kanban-mcp/releases/latest/download/kanban-mcp-darwin-arm64.tar.gz | tar -xz - && chmod +x kanban-mcp && xattr -r -d com.apple.quarantine ./kanban-mcp
+```
+
+**Intel**
+
+```sh
+curl -fsSL https://github.com/rgracey/kanban-mcp/releases/latest/download/kanban-mcp-darwin-amd64.tar.gz | tar -xz - && chmod +x kanban-mcp && xattr -r -d com.apple.quarantine ./kanban-mcp
+```
+
+</details>
+
+<details>
+<summary>Linux</summary>
+
+**x86**
+
+```sh
+curl -fsSL https://github.com/rgracey/kanban-mcp/releases/latest/download/kanban-mcp-linux-amd64.tar.gz | tar -xz - && chmod +x kanban-mcp
+```
+
+**ARM**
+
+```sh
+curl -fsSL https://github.com/rgracey/kanban-mcp/releases/latest/download/kanban-mcp-linux-arm64.tar.gz | tar -xz - && chmod +x kanban-mcp
+```
+
+</details>
+
+<details>
+<summary>Windows</summary>
+
+**Note**: Instructions untested
+
+**x86**
+
+```sh
+iwr https://github.com/rgracey/kanban-mcp/releases/latest/download/kanban-mcp-windows-amd64.zip -OutFile k.zip; Expand-Archive k.zip .; rm k.zip
+```
+
+**ARM**
+
+```sh
+iwr https://github.com/rgracey/kanban-mcp/releases/latest/download/kanban-mcp-windows-arm64.zip -OutFile k.zip; Expand-Archive k.zip .; rm k.zip
+```
+
+</details>
+
+<details>
+<summary>Build from source</summary>
+
 **Prerequisites**
 
 - [Go](https://go.dev/dl/) 1.22 or later
@@ -66,9 +138,72 @@ go build -o kanban-mcp .
 ./kanban-mcp
 ```
 
-The web UI is available at `http://localhost:8080`.
+</details>
 
-### Configuration
+### Running
+
+kanban-mcp can be used either as a standalone server or stdio.
+
+> **Note**: The web UI will be available at `http://localhost:8080` or on whatever port you have [configured](#configuration-options)
+
+<details>
+<summary>Quick commands</summary>
+
+#### Adding HTTP server to Claude Code
+
+```
+claude mcp add --transport http kanban http://localhost:8080/mcp
+```
+
+#### Adding stdio server to Claude Code
+
+```
+claude mcp add kanban -- /path/to/your/kanban-mcp
+```
+
+</details>
+
+#### Standalone
+
+You run kanban-mcp outside of your coding tool and have agents connect to it remotely.
+
+In a terminal, run
+
+```
+./kanban-mcp
+```
+
+This will start kanban-mcp on port `8080` by default. See [Configuration](#configuration-options) for more information.
+
+In your coding tool, configure your MCP servers to point to the now running kanban server
+
+##### opencode example
+
+```
+"mcp": {
+  "kanban": {
+    "type": "remote",
+    "url": "http://localhost:8080/mcp"
+  },
+}
+```
+
+#### Using stdio
+
+Point the MCP to the path where your kanban-mcp binary is
+
+##### opencode example
+
+```
+"kanban": {
+  "type": "local",
+  "command": [
+    "/path/to/your/kanban-mcp"
+  ]
+}
+```
+
+### Configuration options
 
 Flags take precedence over environment variables.
 
@@ -83,77 +218,20 @@ The database file is created automatically on first run. Migrations are applied 
 
 ---
 
-## MCP setup
+## Features
 
-### Claude Desktop (recommended)
-
-Add to your `claude_desktop_config.json`:
-
-```json
-{
-  "mcpServers": {
-    "kanban": {
-      "command": "/path/to/kanban-mcp"
-    }
-  }
-}
-```
-
-The binary defaults to stdio transport, which is what Claude Desktop expects. No extra flags needed.
-
-### Claude Code
-
-```sh
-claude mcp add kanban /path/to/kanban-mcp
-```
-
-### HTTP transport
-
-If you need the MCP server reachable over HTTP (e.g. for a remote agent or to use with an MCP inspector):
-
-```sh
-kanban-mcp --mcp-transport http   # MCP at http://localhost:8080/mcp
-kanban-mcp --mcp-transport both   # HTTP + stdio simultaneously
-```
-
----
-
-## MCP tools
-
-All tools use an action-dispatch pattern: one tool per resource, with an `action` parameter selecting the operation. List actions return `{"items": [...]}` (an object wrapper required by the MCP spec).
-
-| Tool       | Actions                                                                    | Key parameters                                                                                                                                                                                                                                                                                                                                                   |
-| ---------- | -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `board`    | `list`, `get`, `create`, `update`, `delete`, `summary`, `context`, `ready` | `id` or `name` (get/summary/context/ready accept either); `description`; context: `filter_status`, `omit_descriptions`; ready: returns unblocked todo tickets sorted by priority                                                                                                                                                                                 |
-| `epic`     | `list`, `get`, `create`, `update`, `delete`                                | `id`, `board_id`, `title`, `description`                                                                                                                                                                                                                                                                                                                         |
-| `ticket`   | `list`, `get`, `create`, `bulk_create`, `update`, `delete`, `history`      | `id`, `board_id`, `title`, `description`, `status`, `priority`, `epic_id`, `assignee`, `resolution_json`; list: `filter_status`, `filter_priority`, `filter_epic_id`, `filter_assignee`, `q` (searches title + description), `sort_by`, `sort_order`; get: `include_notes`, `include_history`, `include_tasks`, `include_relations`; bulk_create: `tickets_json` |
-| `task`     | `list`, `create`, `update`, `delete`                                       | `id`, `ticket_id`, `title`, `done`                                                                                                                                                                                                                                                                                                                               |
-| `note`     | `list`, `add`, `update`, `delete`                                          | `id`, `ticket_id`, `body`                                                                                                                                                                                                                                                                                                                                        |
-| `relation` | `list`, `add`, `delete`                                                    | `ticket_id`, `to_ticket_id`                                                                                                                                                                                                                                                                                                                                      |
-
-### Special actions
-
-- **`board context`** — Returns a complete snapshot: board metadata, all epics, and all tickets with embedded tasks and blocking relations. Use this instead of multiple list calls when you need the full picture. `filter_status` and `omit_descriptions` reduce token usage on large boards.
-- **`board ready`** — Returns unblocked `todo` tickets ordered by priority (critical → low). Use this to get an agent's immediate work queue.
-- **`ticket bulk_create`** — Create multiple tickets in one call via `tickets_json` (a JSON array of ticket objects).
-- **`resolution_json`** — On ticket create/update, record structured resolution data (e.g., `{"commit_sha":"abc123","pr_url":"https://...","notes":"Fixed by ..."}`). Pass `"null"` to clear.
-
-### Example
-
-Ask Claude: _"Create a board called 'Backend Rewrite', add an epic for authentication, and create three tickets under it."_
-
-Or call a tool directly:
-
-```json
-{
-  "action": "create",
-  "board_id": "uuid-here",
-  "title": "Add OAuth2 support",
-  "description": "Implement OAuth2 login flow",
-  "priority": "high",
-  "epic_id": "epic-uuid-here"
-}
-```
+- **Boards, epics, and tickets** with status (`todo` / `in progress` / `blocked` / `done`) and priority (`low` / `medium` / `high` / `critical`)
+- **Checklists** — per-ticket task lists for progress tracking
+- **Notes** — durable agent scratchpad on tickets to keep progress/findings
+- **Blocking relations** — tickets can block other tickets; `ready` action returns unblocked work
+- **Bulk create** — create multiple tickets in a single call
+- **Assignees** — free-text assignee field per ticket
+- **Markdown** rendering in ticket descriptions
+- **Audit history** — every create, edit, move, note, and task change is recorded and shown in a timeline on the ticket
+- **Real-time updates** — the UI reacts to changes via Server-Sent Events (no polling, no refresh required)
+- **Dark mode** — user toggle, persisted in localStorage
+- **MCP server** — 6 action-dispatched tools covering the full data model
+- **Zero external dependencies** — SQLite, frontend assets, and MCP all embedded in one binary
 
 ---
 
@@ -202,8 +280,8 @@ go build -o kanban-mcp .
 
 ---
 
-## REST API
-
+<details>
+<summary>REST API Reference (click to expand)</summary>
 Base path: `/api/v1`. All responses are JSON. All IDs are UUID v4. Timestamps are RFC3339.
 
 <details>
@@ -297,28 +375,25 @@ Base path: `/api/v1`. All responses are JSON. All IDs are UUID v4. Timestamps ar
 `GET /api/v1/boards/:id/events` — Server-Sent Events stream. Emits an event whenever a ticket on the board is created, updated, or deleted. The UI uses this to refresh without polling.
 
 </details>
+</details>
 
----
+<details>
+<summary>MCP Tools Reference (click to expand)</summary>
+All tools use an action-dispatch pattern: one tool per resource, with an `action` parameter selecting the operation. List actions return `{"items": [...]}` (an object wrapper required by the MCP spec).
 
-## Project structure
+| Tool       | Actions                                                                    | Key parameters                                                                                                                                                                                                                                                                                                                                                   |
+| ---------- | -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `board`    | `list`, `get`, `create`, `update`, `delete`, `summary`, `context`, `ready` | `id` or `name` (get/summary/context/ready accept either); `description`; context: `filter_status`, `omit_descriptions`; ready: returns unblocked todo tickets sorted by priority                                                                                                                                                                                 |
+| `epic`     | `list`, `get`, `create`, `update`, `delete`                                | `id`, `board_id`, `title`, `description`                                                                                                                                                                                                                                                                                                                         |
+| `ticket`   | `list`, `get`, `create`, `bulk_create`, `update`, `delete`, `history`      | `id`, `board_id`, `title`, `description`, `status`, `priority`, `epic_id`, `assignee`, `resolution_json`; list: `filter_status`, `filter_priority`, `filter_epic_id`, `filter_assignee`, `q` (searches title + description), `sort_by`, `sort_order`; get: `include_notes`, `include_history`, `include_tasks`, `include_relations`; bulk_create: `tickets_json` |
+| `task`     | `list`, `create`, `update`, `delete`                                       | `id`, `ticket_id`, `title`, `done`                                                                                                                                                                                                                                                                                                                               |
+| `note`     | `list`, `add`, `update`, `delete`                                          | `id`, `ticket_id`, `body`                                                                                                                                                                                                                                                                                                                                        |
+| `relation` | `list`, `add`, `delete`                                                    | `ticket_id`, `to_ticket_id`                                                                                                                                                                                                                                                                                                                                      |
 
-```
-kanban-mcp/
-├── main.go                  # Entry point: wires DB, store, MCP server, HTTP server
-├── frontend/
-│   ├── src/                 # Svelte 5 + TypeScript source
-│   └── dist/                # Compiled assets (committed; embedded by go:embed)
-└── internal/
-    ├── api/                 # HTTP handlers, SSE hub, router
-    ├── config/              # CLI flag + env var parsing
-    ├── db/                  # SQLite open + migrations
-    ├── mcp/                 # MCP server and tool registration
-    ├── models/              # Shared data types
-    └── store/               # SQLite data access layer
-```
+### Special actions
 
----
-
-## License
-
-MIT
+- **`board context`** — Returns a complete snapshot: board metadata, all epics, and all tickets with embedded tasks and blocking relations. Use this instead of multiple list calls when you need the full picture. `filter_status` and `omit_descriptions` reduce token usage on large boards.
+- **`board ready`** — Returns unblocked `todo` tickets ordered by priority (critical → low). Use this to get an agent's immediate work queue.
+- **`ticket bulk_create`** — Create multiple tickets in one call via `tickets_json` (a JSON array of ticket objects).
+- **`resolution_json`** — On ticket create/update, record structured resolution data (e.g., `{"commit_sha":"abc123","pr_url":"https://...","notes":"Fixed by ..."}`). Pass `"null"` to clear.
+</details>
